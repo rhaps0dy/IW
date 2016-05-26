@@ -5,6 +5,11 @@
 
 using namespace std;
 
+#ifdef OUTPUT_EXPLORE
+constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=12, N_WIDTH=4;
+static int expanded_arr[HEIGHT*N_HEIGHT][WIDTH*N_WIDTH] = {0};
+#endif
+
 IW1Search::IW1Search(Settings &settings,
 			       ActionVect &actions, StellaEnvironment* _env) :
 	SearchTree(settings, actions, _env) {
@@ -134,6 +139,17 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 		    std::random_shuffle ( curr_node->available_actions.begin(), curr_node->available_actions.end() );
 	
 	}
+#ifdef PRINT
+	std::cout << "Expanding node (" <<
+		(int)curr_node->getRAM().get(0xaa) << ", " <<
+		(int)curr_node->getRAM().get(0xab) << ")\n";
+#endif
+#ifdef OUTPUT_EXPLORE
+	int n=curr_node->getRAM().get(0x03);
+	expanded_arr
+		[HEIGHT*(n/4) + curr_node->getRAM().get(0xab)]
+		[WIDTH *(n%4) + curr_node->getRAM().get(0xaa)]++;
+#endif
 	for (int a = 0; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
 		
@@ -194,11 +210,21 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 
 		}
 
+#ifdef PRINT
+		std::cout << "\tQueuing child " << action_to_string(act) << " (" <<
+			(int)child->getRAM().get(0xaa) << ", " <<
+			(int)child->getRAM().get(0xab) << ") ";
+#endif
 		// Don't expand duplicate nodes, or terminal nodes
 		if((!child->is_terminal) &&
 		   (! (ignore_duplicates && test_duplicate(child)) ) &&
 		   ( child->num_nodes_reusable < max_nodes_per_frame )) {
 			q.push(child);
+#ifdef PRINT
+			std::cout << "EXPANDED\n";
+		} else {
+			std::cout << "PRUNED\n";
+#endif
 		}
 	}
 	return num_simulated_steps;
@@ -274,17 +300,6 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 		std::cout << "\tGenerated so far: " << m_generated_nodes << std::endl;	
 
 		if (q.empty()) { std::cout << "Search Space Exhausted!" << std::endl;
-/*			ofstream exparr("exparr.txt");
-			exparr << '[';
-			for(int i=0; i<0x100; i++) {
-				exparr << '[';
-				for(int j=0; j<0x100; j++)
-					exparr << expanded_arr[i][j] << ",";
-				exparr << "],\n";
-			}
-			exparr << "]\n";
-			exparr.close();
-			assert(false);*/
 		}
 		// Stop once we have simulated a maximum number of steps
 		if (num_simulated_steps >= max_sim_steps_per_frame) {
@@ -292,9 +307,20 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 		}
 
 	} while ( !pivots.empty() );
-    
+#ifdef OUTPUT_EXPLORE
+	ofstream exparr("exparr.txt");
+	exparr << '[';
+	for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
+		exparr << '[';
+		for(int j=0; j<WIDTH*N_WIDTH; j++)
+			exparr << expanded_arr[i][j] << ",";
+		exparr << "],\n";
+	}
+	exparr << "]\n";
+	exparr.close();
+	assert(false);
+#endif
 
-	
 	update_branch_return(start_node);
 }
 

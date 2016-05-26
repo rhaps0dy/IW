@@ -89,7 +89,9 @@ Action SearchTree::get_best_action(void) {
 				
 		if (c != (size_t)best_branch && 
 		    curr_child->branch_return == best_child->branch_return && 
-		    curr_child->is_terminal == best_child->is_terminal) {
+		    curr_child->is_terminal == best_child->is_terminal &&
+			// Minimum depth if all branches return zero
+			!(best_child->branch_return == 0 && best_child->branch_depth < 12)) {
 			best_branches.push_back(c);
 			
 		}

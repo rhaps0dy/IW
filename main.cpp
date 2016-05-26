@@ -2,11 +2,13 @@
 #include<iostream>
 #include<sstream>
 #include<iomanip>
+#include<iterator>
 #include<fstream>
 #include<string>
 #include "IW1Search.hpp"
 #include<cassert>
 #include<memory>
+#include<stdexcept>
 
 using namespace std;
 
@@ -30,6 +32,24 @@ int main(int argc, char *argv[]) {
 	ifstream exists(record_dir + "/action_reward_" + trajectory_suffix);
 	assert(!exists.is_open());
 
+	if(argc == 2) {
+		cout << "Attempting to load last state from file: " << argv[1] << endl;
+		ifstream state_f(argv[1], ios::in|ios::binary);
+		string delimiter = "<endstate>";
+		string state_seq((istreambuf_iterator<char>(state_f)),
+				istreambuf_iterator<char>());
+		state_f.close();
+		state_seq.erase(state_seq.rfind(delimiter));
+		string state_s = state_seq.substr(
+				state_seq.rfind(delimiter)+delimiter.size(),
+				string::npos);
+
+		try {
+			ale.restoreSystemState(ALEState(state_s));
+		} catch(const runtime_error &e) {
+			ale.restoreState(ALEState(state_s));
+		}
+	}
     while(!ale.game_over()) {
 		ALEState state=ale.cloneSystemState();
 		const ALEScreen saved_screen=ale.getScreen();
@@ -57,7 +77,7 @@ int main(int argc, char *argv[]) {
 		action_reward << static_cast<int>(action) << " " << r << " " << total_reward << endl;
 		action_reward.close();
 		statef.open(record_dir + "/state_" + trajectory_suffix, fstream::app);
-		statef << ale.cloneState().serialize() << "<endstate>";
+		statef << ale.cloneSystemState().serialize() << "<endstate>";
 		statef.close();
     }
     return 0;
