@@ -24,7 +24,7 @@ using namespace std;
  ******************************************************************* */
 SearchTree::SearchTree(Settings & settings, 
 		       ActionVect &_actions,
-		       ALEInterface* _env):
+		       StellaEnvironment* _env):
     is_built(false),
     p_root(NULL),
     ignore_duplicates(true),
@@ -33,10 +33,9 @@ SearchTree::SearchTree(Settings & settings,
     total_simulation_steps(0)
 {
     
-    sim_steps_per_node = settings.getInt("sim_steps_per_node", true);
+    frame_skip = settings.getInt("frame_skip", true);
     max_sim_steps_per_frame = settings.getInt("max_sim_steps_per_frame",false);
     num_simulations_per_frame = settings.getInt("num_simulations_per_frame",false);
-	use_options = settings.getBool("use_options", false);
     
 //    std::cout << "max_sim_steps_per_frame: "<< max_sim_steps_per_frame << std::endl;
     assert(max_sim_steps_per_frame != -1 || settings.getInt("uct_monte_carlo_steps",false) != -1);
@@ -119,7 +118,7 @@ Action SearchTree::get_best_action(void) {
 	while(nn->v_children.size() != 0) {
 		std::cout << " " << action_to_string(nn->available_actions[nn->best_branch]) << " " << nn->node_reward;
 		TreeNode *child = nn->v_children[nn->best_branch];
-//		printf(" (%d, %d)\n", child->state.getRAM().get(0xAA), child->state.getRAM().get(0xAB));
+		printf(" (%d, %d)\n", child->getRAM().get(0xAA), child->getRAM().get(0xAB));
 		nn = child;
 	}
 //	std::cout << "\nCurrent position: " << m_env->getRAM().get(0xAA) << ' ' << m_env->getRAM().get(0xAB) << std::endl;
@@ -218,22 +217,20 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 
 	int i;
 
-	for (i = 0; i < num_steps || (use_options && (
-			 m_env->theOSystem->console().system().peek(0xd6) != 0xff ||
-			 m_env->theOSystem->console().system().peek(0xd8) != 0x00)); i++) {
-		if (act == RANDOM && i%sim_steps_per_node == 0)
+	for (i = 0; i < num_steps; i++) {
+		if (act == RANDOM && i%frame_skip == 0)
 			a = choice(&available_actions);
 
 		// Move state forward using action a
-		reward_t curr_reward = m_env->act( PLAYER_A_NOOP);
-		game_ended = m_env->game_over();
+		reward_t curr_reward = m_env->oneStepAct( a, PLAYER_B_NOOP);
+		game_ended = m_env->isTerminal();
 			
 		return_t r = normalize_rewards ? normalize(curr_reward) : curr_reward;
     
 		// Add curr_reward to the trajectory return
 		if (discount_return) {
 			traj_return += r * g;
-			if((i+1)%sim_steps_per_node == 0)
+			if((i+1)%frame_skip == 0)
 				g *= discount_factor;
 		}
 		else
@@ -244,17 +241,13 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 			i++;
 			break;
 		}
-		if(i > 1000) {
-			puts("The jump is taking too long in the simulation.");
-			i++;
-			break;
-		}
 	}
 
 	// Save the result
 	if(save_state) {
 		state = m_env->cloneSystemState();
-		ram = m_env->getRAM();
+		for(int i=0x80; i<0x100; i++)
+			*ram.byte(i) = m_env->getSystem().peek(i);
 	}
 
 	return i;

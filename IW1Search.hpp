@@ -4,12 +4,13 @@
 #include "SearchTree.hpp"
 #include "bit_matrix.hxx"
 #include <environment/ale_ram.hpp>
+#include <environment/stella_environment.hpp>
 
 #include <queue>
 
 class IW1Search : public SearchTree {
     public:
-	IW1Search(Settings &settings, ActionVect &actions, ALEInterface* _env);
+	IW1Search(Settings &settings, ActionVect &actions, StellaEnvironment* _env);
 
 	virtual ~IW1Search();
 

@@ -6,7 +6,7 @@
 using namespace std;
 
 IW1Search::IW1Search(Settings &settings,
-			       ActionVect &actions, ALEInterface* _env) :
+			       ActionVect &actions, StellaEnvironment* _env) :
 	SearchTree(settings, actions, _env) {
 	
 	m_stop_on_first_reward = settings.getBool( "iw1_stop_on_first_reward", true );
@@ -123,8 +123,8 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 	int num_simulated_steps =0;
 	int num_actions = available_actions.size();
 	bool leaf_node = (curr_node->v_children.empty());
-	assert(sim_steps_per_node != 0);
-	static     int max_nodes_per_frame = max_sim_steps_per_frame / sim_steps_per_node;
+	assert(frame_skip != 0);
+	static     int max_nodes_per_frame = max_sim_steps_per_frame / frame_skip;
 	m_expanded_nodes++;
 	// Expand all of its children (simulates the result)
 	if(leaf_node){
@@ -146,7 +146,7 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 						curr_node->state,
 						this,
 						act,
-						sim_steps_per_node); 
+						frame_skip); 
 //			if ( check_novelty_1( egetRAM() ) ) {
 //				update_novelty_table( child->state.getRAM() );
 			if ( check_novelty_1(child->getRAM() ) ) {
@@ -385,7 +385,7 @@ void IW1Search::set_terminal_root(TreeNode * node) {
 	if (node->v_children.empty()) {
 		// Expand one child; add it to the node's children
 		TreeNode* new_child = new TreeNode(	node, node->state, 
-							this, PLAYER_A_NOOP, sim_steps_per_node);
+							this, PLAYER_A_NOOP, frame_skip);
 
 		node->v_children.push_back(new_child);
     	}

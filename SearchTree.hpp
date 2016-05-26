@@ -20,6 +20,7 @@
 #include "TreeNode.hpp"
 #include <fstream>
 #include <limits>
+#include <environment/stella_environment.hpp>
 
 class SearchAgent;
 
@@ -33,7 +34,7 @@ class SearchTree {
 		/* *********************************************************************
             Constructor
          ******************************************************************* */
-               SearchTree(Settings &, ActionVect &, ALEInterface* _env);
+               SearchTree(Settings &, ActionVect &, StellaEnvironment* _env);
 
 		/* *********************************************************************
             Destructor   
@@ -83,7 +84,7 @@ class SearchTree {
       *
       *  random_action_length specifies how frequently to pick a new random
       *   action during simulation.
-      *  if discount_return == true, then every 'sim_steps_per_node' we
+      *  if discount_return == true, then every 'frame_skip' we
       *   discount the reward by 'discount_factor'
       */
     int simulate_game(ALEState & state, ALERAM &ram, Action act, int num_steps, 
@@ -130,7 +131,7 @@ class SearchTree {
     // Root of the SearchTree
 		TreeNode* p_root;		
     // Number of steps we will run the simulation in each search-tree node
-		int sim_steps_per_node;	
+		int frame_skip;	
     // Maximum number of simulation steps that will be carried to build 
     //   the tree on one frame
 		int max_sim_steps_per_frame;
@@ -152,7 +153,7 @@ class SearchTree {
     //   to get_num_simulation_steps() 
     long total_simulation_steps;
     
-    ALEInterface* m_env;
+    StellaEnvironment* m_env;
 
     unsigned m_expanded_nodes;
     unsigned m_generated_nodes;
@@ -160,7 +161,6 @@ class SearchTree {
 
     bool   m_novelty_pruning;
     bool             m_randomize_successor;
-	bool use_options;
 };
 
 #endif // __SEARCH_TREE_HPP__
