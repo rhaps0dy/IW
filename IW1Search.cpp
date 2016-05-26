@@ -123,7 +123,7 @@ bool IW1Search::check_novelty_1( const ALERAM& machine_state )
 	return false;
 }
 
-int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
+int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<TreeNode*>& low_q)
 {
 	int num_simulated_steps =0;
 	int num_actions = available_actions.size();
@@ -147,7 +147,7 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 #ifdef OUTPUT_EXPLORE
 	int n=curr_node->getRAM().get(0x03);
 	expanded_arr
-		[HEIGHT*(n/4) + curr_node->getRAM().get(0xab)]
+		[HEIGHT*(n/4) + HEIGHT-curr_node->getRAM().get(0xab)]
 		[WIDTH *(n%4) + curr_node->getRAM().get(0xaa)]++;
 #endif
 	for (int a = 0; a < num_actions; a++) {
@@ -219,7 +219,12 @@ int IW1Search::expand_node( TreeNode* curr_node, queue<TreeNode*>& q )
 		if((!child->is_terminal) &&
 		   (! (ignore_duplicates && test_duplicate(child)) ) &&
 		   ( child->num_nodes_reusable < max_nodes_per_frame )) {
-			q.push(child);
+			// if life is lost, put it in the lower priority queue
+			if(child->getRAM().get(0xba) < curr_node->getRAM().get(0xba)) {
+				low_q.push(child);
+			} else {
+				q.push(child);
+			}
 #ifdef PRINT
 			std::cout << "EXPANDED\n";
 		} else {
@@ -247,7 +252,8 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 	    }
 	}
 
-	queue<TreeNode*> q;
+	// low_q contains nodes that lose a life
+	queue<TreeNode*> q, low_q;
 	std::list< TreeNode* > pivots;
 	
 	//q.push(start_node);
@@ -267,7 +273,7 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 		std::cout << "# Pivots: " << pivots.size() << std::endl;
 		std::cout << "First pivot reward: " << pivots.front()->node_reward << std::endl;
 		pivots.front()->m_depth = 0;
-		int steps = expand_node( pivots.front(), q );
+		int steps = expand_node( pivots.front(), q, low_q );
 		num_simulated_steps += steps;
 
 		if (num_simulated_steps >= max_sim_steps_per_frame) {
@@ -276,10 +282,16 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 
 		pivots.pop_front();
 
-		while(!q.empty()) {
+		while(!q.empty() || !low_q.empty()) {
 			// Pop a node to expand
-			TreeNode* curr_node = q.front();
-			q.pop();
+			TreeNode* curr_node;
+			if(!q.empty()) {
+				curr_node = q.front();
+				q.pop();
+			} else {
+				curr_node = low_q.front();
+				low_q.pop();
+			}
 	
 			if ( curr_node->depth() > m_reward_horizon - 1 ) continue;
 			if ( m_stop_on_first_reward && curr_node->node_reward != 0 ) 
@@ -287,7 +299,7 @@ void IW1Search::expand_tree(TreeNode* start_node) {
 				pivots.push_back( curr_node );
 				continue;
 			}
-			steps = expand_node( curr_node, q );	
+			steps = expand_node( curr_node, q, low_q);
 			num_simulated_steps += steps;
 			// Stop once we have simulated a maximum number of steps
 			if (num_simulated_steps >= max_sim_steps_per_frame) {

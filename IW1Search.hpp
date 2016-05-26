@@ -17,7 +17,7 @@ class IW1Search : public SearchTree {
 	virtual void build(ALEState & state);
 		
 	virtual void update_tree();
-	virtual int  expand_node( TreeNode* n, std::queue<TreeNode*>& q ); 
+	virtual int  expand_node( TreeNode* n, std::queue<TreeNode*>& q, std::queue<TreeNode*>& low_q); 
 
 	int expanded() const { return m_expanded_nodes; }
 	int generated() const { return m_generated_nodes; }
