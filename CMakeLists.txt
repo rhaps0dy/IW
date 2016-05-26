@@ -13,6 +13,10 @@ set(OUTPUT_EXPLORE OFF CACHE BOOL "Whether to output exploration information")
 if(OUTPUT_EXPLORE)
 	add_definitions(-DOUTPUT_EXPLORE)
 endif(OUTPUT_EXPLORE)
+set(SHOW_SEARCH OFF CACHE BOOL "Whether to display the search process on the screen")
+if(SHOW_SEARCH)
+	add_definitions(-DSHOW_SEARCH)
+endif(SHOW_SEARCH)
 
 
 set(ALE_DIR "/home/adria/Programacio/Arcade-Learning-Environment" CACHE FILEPATH "Repository root for the Arcade Learning Environment")

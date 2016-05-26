@@ -27,6 +27,9 @@ int main(int argc, char *argv[]) {
 
 	IW1Search search_tree(*ale.theSettings, available_actions, ale.environment.get());
 	search_tree.set_novelty_pruning();
+#if SHOW_SEARCH
+	search_tree.aleint = &ale;
+#endif
 
 	reward_t total_reward = 0;
 	ifstream exists(record_dir + "/action_reward_" + trajectory_suffix);
@@ -45,9 +48,9 @@ int main(int argc, char *argv[]) {
 				string::npos);
 
 		try {
-			ale.restoreSystemState(ALEState(state_s));
-		} catch(const runtime_error &e) {
 			ale.restoreState(ALEState(state_s));
+		} catch(const runtime_error *e) {
+			ale.restoreSystemState(ALEState(state_s));
 		}
 	}
     while(!ale.game_over()) {

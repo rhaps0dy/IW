@@ -22,6 +22,10 @@
 #include <limits>
 #include <environment/stella_environment.hpp>
 
+#ifdef SHOW_SEARCH
+#include <ale_interface.hpp>
+#endif
+
 class SearchAgent;
 
 
@@ -31,6 +35,9 @@ class SearchTree {
     ************************************************************************* */
 	
     public:
+#ifdef SHOW_SEARCH
+	ALEInterface *aleint;
+#endif
 		/* *********************************************************************
             Constructor
          ******************************************************************* */

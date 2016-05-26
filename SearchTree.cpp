@@ -96,7 +96,7 @@ Action SearchTree::get_best_action(void) {
 			
 		}
 	}
-	
+	// not a problem if best_branches.size() == 0
 	if (best_branches.size() > 1) {
 		// best_branch = 0;
 		// unsigned best_depth = p_root->v_children[ best_branches[0] ]->branch_depth;
@@ -219,12 +219,21 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 
 	int i;
 
+#ifdef SHOW_SEARCH
+	for (i = 0; i < num_steps; i += frame_skip) {
+#else
 	for (i = 0; i < num_steps; i++) {
+#endif
 		if (act == RANDOM && i%frame_skip == 0)
 			a = choice(&available_actions);
 
 		// Move state forward using action a
+#ifdef SHOW_SEARCH
+		reward_t curr_reward = aleint->act(a);
+#else
 		reward_t curr_reward = m_env->oneStepAct( a, PLAYER_B_NOOP);
+#endif
+
 		game_ended = m_env->isTerminal();
 			
 		return_t r = normalize_rewards ? normalize(curr_reward) : curr_reward;
