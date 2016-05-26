@@ -4,8 +4,16 @@ project(IteratedWidth)
 
 set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") 
-add_definitions(-DROM_DIR="${ROM_DIR}" -DTFG_DIR="${TFG_DIR}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(PRINT OFF CACHE BOOL "Whether to print exploration trace")
+if(PRINT)
+	add_definitions(-DPRINT)
+endif(PRINT)
+set(OUTPUT_EXPLORE OFF CACHE BOOL "Whether to output exploration information")
+if(OUTPUT_EXPLORE)
+	add_definitions(-DOUTPUT_EXPLORE)
+endif(OUTPUT_EXPLORE)
+
 
 set(ALE_DIR "/home/adria/Programacio/Arcade-Learning-Environment" CACHE FILEPATH "Repository root for the Arcade Learning Environment")
 

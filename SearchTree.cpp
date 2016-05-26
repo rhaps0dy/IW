@@ -89,7 +89,9 @@ Action SearchTree::get_best_action(void) {
 				
 		if (c != (size_t)best_branch && 
 		    curr_child->branch_return == best_child->branch_return && 
-		    curr_child->is_terminal == best_child->is_terminal) {
+		    curr_child->is_terminal == best_child->is_terminal &&
+			// Minimum depth if all branches return zero
+			!(best_child->branch_return == 0 && best_child->branch_depth < 12)) {
 			best_branches.push_back(c);
 			
 		}
@@ -125,7 +127,9 @@ Action SearchTree::get_best_action(void) {
 	for (size_t c = 0; c < p_root->v_children.size(); c++) {
 		TreeNode* curr_child = p_root->v_children[ c ];
 
-		std::cout << "Action: " << action_to_string(curr_child->act) << " Depth: " << curr_child->branch_depth  <<" NumNodes: " << curr_child->num_nodes() << " Reward: "<< curr_child->branch_return   << std::endl;
+		std::cout << "Action: " << action_to_string(curr_child->act) << " Depth:
+		" << curr_child->branch_depth <<" NumNodes: " << curr_child->num_nodes()
+		<< " Reward: "<< curr_child->branch_return << std::endl;
 	
 	}
 	
