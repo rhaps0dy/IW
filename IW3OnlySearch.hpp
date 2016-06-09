@@ -41,7 +41,8 @@ public:
 
     	void set_terminal_root(TreeNode* node); 
 
-	void	update_novelty_table( const ALERAM &machine_state );
+	void	set_novelty_table( const ALERAM &machine_state );
+	void	unset_novelty_table( const ALERAM &machine_state );
 	bool	check_novelty_3( const ALERAM& machine_state );
 
 	virtual void	clear();
@@ -54,6 +55,7 @@ public:
 	unsigned		m_reward_horizon;	
 	std::map<unsigned, unsigned> m_positions_noop;
 	unsigned m_max_noop_reopen;
+	unsigned m_noop_parent_depth;
 };
 
 

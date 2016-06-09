@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
 		string state_seq((istreambuf_iterator<char>(state_f)),
 				istreambuf_iterator<char>());
 		state_f.close();
-		state_seq.erase(state_seq.rfind(delimiter));
+		for(int i=0; i<20; i++)
+			state_seq.erase(state_seq.rfind(delimiter));
 		string state_s = state_seq.substr(
 				state_seq.rfind(delimiter)+delimiter.size(),
 				string::npos);

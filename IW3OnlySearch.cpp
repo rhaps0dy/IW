@@ -22,6 +22,7 @@ IW3OnlySearch::IW3OnlySearch(Settings &settings,
 
 	m_pos_novelty_table = new aptk::Bit_Matrix( 0x20, 256 * 256 );
 	m_max_noop_reopen = settings.getInt( "iw3_max_noop_reopen", 0 );
+	m_noop_parent_depth = settings.getInt( "iw3_noop_parent_depth", 0 );
 }
 
 IW3OnlySearch::~IW3OnlySearch() {
@@ -58,7 +59,12 @@ void IW3OnlySearch::update_tree() {
 	expand_tree(p_root);
 }
 
-void IW3OnlySearch::update_novelty_table( const ALERAM& machine_state )
+void IW3OnlySearch::unset_novelty_table( const ALERAM& machine_state )
+{
+	m_pos_novelty_table->unset( machine_state.get(0x03),
+							  machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
+}
+void IW3OnlySearch::set_novelty_table( const ALERAM& machine_state )
 {
 	m_pos_novelty_table->set( machine_state.get(0x03),
 		machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
@@ -101,7 +107,6 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 		[HEIGHT*(n/4) + HEIGHT-curr_node->getRAM().get(0xab)]
 		[WIDTH *(n%4) + curr_node->getRAM().get(0xaa)]++;
 #endif
-	bool enable_noop = false;
 	for (int a = 0; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
 		
@@ -115,7 +120,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 						this,
 						act,
 						frame_skip); 
-			if ((enable_noop && act==PLAYER_A_NOOP) || check_novelty_3(child->getRAM() ) ) {
+			if (check_novelty_3(child->getRAM() ) ) {
 				// child->is_terminal is already false
 			}
 			else{
@@ -137,7 +142,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 			{
 			    if( child->is_terminal )
 			    {
-				if ( (enable_noop && act==PLAYER_A_NOOP) || check_novelty_3( child->getRAM() ) ){
+				if (check_novelty_3( child->getRAM() ) ){
 				    child->is_terminal = false;
 				}
 				else{
@@ -176,7 +181,12 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
-						enable_noop = true;
+						TreeNode *nd = curr_node;
+						for(unsigned i=0; i<m_noop_parent_depth && n; i++) {
+							unset_novelty_table(nd->getRAM());
+							nd = nd->p_parent;
+						}
+						q.push(*nd->v_children.rbegin());
 						m_positions_noop[pos] = n + 1;
 #ifdef PRINT
 						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
@@ -184,7 +194,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 							(int)curr_node->getRAM().get(0xab) << ")\n";
 #endif
 					} else {
-						update_novelty_table( child->getRAM() );
+						set_novelty_table( child->getRAM() );
 					}
 				} else {
 					unsigned n=0;
@@ -193,7 +203,12 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					   curr_node->getRAM().get(0xd8) == 0 &&
 					   curr_node->getRAM().get(0xd6) == 0xff &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
-						enable_noop = true;
+						TreeNode *nd = curr_node;
+						for(unsigned i=0; i<m_noop_parent_depth && n; i++) {
+							unset_novelty_table(nd->getRAM());
+							nd = nd->p_parent;
+						}
+						q.push(*nd->v_children.rbegin());
 						m_positions_noop[pos] = n + 1;
 #ifdef PRINT
 						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
@@ -201,12 +216,12 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 							(int)curr_node->getRAM().get(0xab) << ")\n";
 #endif
 					} else {
-						update_novelty_table( child->getRAM() );
+						set_novelty_table( child->getRAM() );
 					}
 					q.push(child);
 				}
 			} else {
-				update_novelty_table( child->getRAM() );
+				set_novelty_table( child->getRAM() );
 			}
 #ifdef PRINT
 			std::cout << "EXPANDED\n";
@@ -242,8 +257,8 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 	//q.push(start_node);
 	pivots.push_back( start_node );
 
-//	update_novelty_table( start_node->state.getRAM() );
-	update_novelty_table( m_env->getRAM() );
+//	set_novelty_table( start_node->state.getRAM() );
+	set_novelty_table( m_env->getRAM() );
 	int num_simulated_steps = 0;
 
 	m_expanded_nodes = 0;
