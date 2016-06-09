@@ -25,7 +25,7 @@ include_directories(${ALE_DIR}/src)
 link_directories(${ALE_DIR})
 
 
-set(OTHERS IW1Search.cpp SearchTree.cpp TreeNode.cpp bit_array.cxx)
+set(OTHERS IW1Search.cpp SearchTree.cpp TreeNode.cpp bit_array.cxx IW3OnlySearch.cpp)
 
 add_executable(iw main.cpp ${OTHERS})
 target_link_libraries(iw ale)

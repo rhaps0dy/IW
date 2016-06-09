@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
 		for(int i=0; i<frame_skip; i++) {
 			r += ale.act(static_cast<Action>(action));
 		}
-		assert(r==reward);
     }
 	action_reward.close();
     return 0;

@@ -6,3 +6,4 @@ iw
 *.1
 recording*
 replay
+.DS_Store

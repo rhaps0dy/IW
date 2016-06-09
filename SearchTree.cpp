@@ -16,6 +16,7 @@
 #include "SearchTree.hpp"
 #include "random_tools.h"
 #include <emucore/m6502/src/System.hxx>
+#include <cassert>
 
 using namespace std;
 
@@ -48,6 +49,12 @@ SearchTree::SearchTree(Settings & settings,
     m_env = _env;
     m_randomize_successor = settings.getBool( "randomize_successor_novelty", false );
     m_novelty_pruning = false;
+
+	// modified IW
+	assert(available_actions.size() == 8);
+	for(size_t i=0; i<7; i++)
+		available_actions[i] = available_actions[i+1];
+	available_actions[7] = PLAYER_A_NOOP;
 }
 
 

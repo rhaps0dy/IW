@@ -6,9 +6,11 @@
 #include<fstream>
 #include<string>
 #include "IW1Search.hpp"
+#include "IW3OnlySearch.hpp"
 #include<cassert>
 #include<memory>
 #include<stdexcept>
+#include<cstdlib>
 
 using namespace std;
 
@@ -25,7 +27,7 @@ int main(int argc, char *argv[]) {
 	else
 		available_actions = ale.romSettings->getAllActions();
 
-	IW1Search search_tree(*ale.theSettings, available_actions, ale.environment.get());
+	IW3OnlySearch search_tree(*ale.theSettings, available_actions, ale.environment.get());
 	search_tree.set_novelty_pruning();
 #if SHOW_SEARCH
 	search_tree.aleint = &ale;
@@ -53,6 +55,9 @@ int main(int argc, char *argv[]) {
 			ale.restoreSystemState(ALEState(state_s));
 		}
 	}
+	// randomise initial situation
+	for(int i=0; i<rand()%30; i++)
+		ale.act(PLAYER_A_NOOP);
     while(!ale.game_over()) {
 		ALEState state=ale.cloneSystemState();
 		const ALEScreen saved_screen=ale.getScreen();
