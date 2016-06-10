@@ -6,8 +6,9 @@
 using namespace std;
 
 #ifdef OUTPUT_EXPLORE
-constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=12, N_WIDTH=4;
+constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=4, N_WIDTH=9;
 static int expanded_arr[HEIGHT*N_HEIGHT][WIDTH*N_WIDTH] = {0};
+static bool visited_screens[24] = {false};
 #endif
 
 IW3OnlySearch::IW3OnlySearch(Settings &settings,
@@ -104,9 +105,26 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 #endif
 #ifdef OUTPUT_EXPLORE
 	int n=curr_node->getRAM().get(0x03);
-	expanded_arr
-		[HEIGHT*(n/4) + HEIGHT-curr_node->getRAM().get(0xab)]
-		[WIDTH *(n%4) + curr_node->getRAM().get(0xaa)]++;
+	if(n < 24) {
+		int xoffs, yoffs;
+		if(n < 8) {
+			if(n < 3) xoffs=3+n, yoffs=0;
+			else xoffs=n-1, yoffs=1;
+		} else {
+			if(n < 15) xoffs=n-7, yoffs=2;
+			else xoffs=n-15, yoffs=3;
+		}
+		expanded_arr
+			[HEIGHT*yoffs + HEIGHT-(curr_node->getRAM().get(0xab)-0x80)]
+			[WIDTH *xoffs + curr_node->getRAM().get(0xaa)]++;
+		if(!visited_screens[n]) {
+			visited_screens[n] = true;
+			std::cout << "Visited screen " << n << std::endl;
+		}
+
+//		std::cout << "Increasing (" << (HEIGHT*(n/4) + HEIGHT-curr_node->getRAM().get(0xab)-1) << ", " << (WIDTH *(n%4) + curr_node->getRAM().get(0xaa)) << ")\n";
+//		std::cout << "n=" << n <<", y="<<(int)curr_node->getRAM().get(0xab)<<"\n";
+	}
 #endif
 	for (int a = 0; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
@@ -181,14 +199,14 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					// Furthermore, enable NOOP if this is walking to the side and kills
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
-					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
-						TreeNode *nd = curr_node;
+					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT || act == PLAYER_A_UP)) {
+						TreeNode *nd = curr_node->p_parent;
+						unset_novelty_table(curr_node->getRAM());
 						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
+							q.push(*nd->v_children.rbegin());
 							unset_novelty_table(nd->getRAM());
 							nd = nd->p_parent;
 						}
-						if(nd != NULL)
-							q.push(*nd->v_children.rbegin());
 						m_positions_noop[pos] = n + 1;
 #ifdef PRINT
 						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
@@ -204,7 +222,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					   child->getRAM().get(0xd8) != 0 &&
 					   curr_node->getRAM().get(0xd8) == 0 &&
 					   curr_node->getRAM().get(0xd6) == 0xff &&
-					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
+					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						TreeNode *nd = curr_node;
 						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
 							unset_novelty_table(nd->getRAM());

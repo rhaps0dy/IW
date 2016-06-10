@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
 		available_actions = ale.romSettings->getMinimalActionSet();
 	else
 		available_actions = ale.romSettings->getAllActions();
+	const int n_states_back = ale.getInt("n_states_back");
 
 	IW3OnlySearch search_tree(*ale.theSettings, available_actions, ale.environment.get());
 	search_tree.set_novelty_pruning();
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
 		string state_seq((istreambuf_iterator<char>(state_f)),
 				istreambuf_iterator<char>());
 		state_f.close();
-		for(int i=0; i<20; i++)
+		for(int i=0; i<n_states_back; i++)
 			state_seq.erase(state_seq.rfind(delimiter));
 		string state_s = state_seq.substr(
 				state_seq.rfind(delimiter)+delimiter.size(),
