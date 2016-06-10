@@ -20,7 +20,7 @@ IW3OnlySearch::IW3OnlySearch(Settings &settings,
 
 	m_reward_horizon = ( val < 0 ? std::numeric_limits<unsigned>::max() : val ); 
 
-	m_pos_novelty_table = new aptk::Bit_Matrix( 0x20, 256 * 256 );
+	m_pos_novelty_table = new aptk::Bit_Matrix( 24, 256 * 256 );
 	m_max_noop_reopen = settings.getInt( "iw3_max_noop_reopen", 0 );
 	m_noop_parent_depth = settings.getInt( "iw3_noop_parent_depth", 0 );
 }
@@ -61,8 +61,9 @@ void IW3OnlySearch::update_tree() {
 
 void IW3OnlySearch::unset_novelty_table( const ALERAM& machine_state )
 {
-	m_pos_novelty_table->unset( machine_state.get(0x03),
-							  machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
+	auto s = machine_state.get(0x03);
+	if(s >= 24) return;
+	m_pos_novelty_table->unset(s, machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
 }
 void IW3OnlySearch::set_novelty_table( const ALERAM& machine_state )
 {
@@ -182,11 +183,12 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
 						TreeNode *nd = curr_node;
-						for(unsigned i=0; i<m_noop_parent_depth && n; i++) {
+						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
 							unset_novelty_table(nd->getRAM());
 							nd = nd->p_parent;
 						}
-						q.push(*nd->v_children.rbegin());
+						if(nd != NULL)
+							q.push(*nd->v_children.rbegin());
 						m_positions_noop[pos] = n + 1;
 #ifdef PRINT
 						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
@@ -204,11 +206,12 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 					   curr_node->getRAM().get(0xd6) == 0xff &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT)) {
 						TreeNode *nd = curr_node;
-						for(unsigned i=0; i<m_noop_parent_depth && n; i++) {
+						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
 							unset_novelty_table(nd->getRAM());
 							nd = nd->p_parent;
 						}
-						q.push(*nd->v_children.rbegin());
+						if(nd != NULL)
+							q.push(*nd->v_children.rbegin());
 						m_positions_noop[pos] = n + 1;
 #ifdef PRINT
 						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
