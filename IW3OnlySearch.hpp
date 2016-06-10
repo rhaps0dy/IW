@@ -7,7 +7,7 @@
 #include <environment/stella_environment.hpp>
 #include <map>
 
-#include <queue>
+#include <deque>
 
 class IW3OnlySearch : public SearchTree {
     public:
@@ -18,7 +18,7 @@ class IW3OnlySearch : public SearchTree {
 	virtual void build(ALEState & state);
 		
 	virtual void update_tree();
-	virtual int  expand_node( TreeNode* n, std::queue<TreeNode*>& q, std::queue<TreeNode*>& low_q); 
+	virtual int  expand_node( TreeNode* n, std::deque<TreeNode*>& q, std::deque<TreeNode*>& low_q);
 
 	int expanded() const { return m_expanded_nodes; }
 	int generated() const { return m_generated_nodes; }
