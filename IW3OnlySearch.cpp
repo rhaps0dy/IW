@@ -5,11 +5,25 @@
 
 using namespace std;
 
-#ifdef OUTPUT_EXPLORE
 constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=4, N_WIDTH=9;
+#ifdef OUTPUT_EXPLORE
 static int expanded_arr[HEIGHT*N_HEIGHT][WIDTH*N_WIDTH] = {0};
 static bool visited_screens[24] = {false};
 #endif
+
+static void
+real_position(int &real_x, int &real_y, const int n, const int x, const int y) {
+	int xoffs, yoffs;
+	if(n < 8) {
+		if(n < 3) xoffs=3+n, yoffs=0;
+		else xoffs=n-1, yoffs=1;
+	} else {
+		if(n < 15) xoffs=n-7, yoffs=2;
+		else xoffs=n-15, yoffs=3;
+	}
+	real_y = HEIGHT*yoffs + HEIGHT-(y-0x80);
+	real_x = WIDTH*xoffs + x;
+}
 
 IW3OnlySearch::IW3OnlySearch(Settings &settings,
 			       ActionVect &actions, StellaEnvironment* _env) :
@@ -57,7 +71,17 @@ void IW3OnlySearch::print_path(TreeNode * node, int a) {
 }
 
 void IW3OnlySearch::update_tree() {
+	real_position(root_x, root_y, p_root->getRAM().get(0x83),
+		p_root->getRAM().get(0xaa), p_root->getRAM().get(0xab));
 	expand_tree(p_root);
+}
+
+void IW3OnlySearch::add_to_queue(TreeNode *n, TNodePriorityQueue &q) {
+	int n_x, n_y;
+	real_position(n_x, n_y, n->getRAM().get(0x83),
+		n->getRAM().get(0xaa), n->getRAM().get(0xab));
+	int dist = abs(root_x-n_x)+abs(root_y-n_y);
+	q.push(make_pair(dist, n));
 }
 
 void IW3OnlySearch::unset_novelty_table( const ALERAM& machine_state )
@@ -82,7 +106,7 @@ bool IW3OnlySearch::check_novelty_3( const ALERAM& machine_state )
 	return false;
 }
 
-int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<TreeNode*>& low_q)
+int IW3OnlySearch::expand_node( TreeNode* curr_node, TNodePriorityQueue& q, TNodePriorityQueue& low_q)
 {
 	int num_simulated_steps =0;
 	size_t num_actions = available_actions.size();
@@ -107,24 +131,14 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 #ifdef OUTPUT_EXPLORE
 	int n=curr_node->getRAM().get(0x03);
 	if(n < 24) {
-		int xoffs, yoffs;
-		if(n < 8) {
-			if(n < 3) xoffs=3+n, yoffs=0;
-			else xoffs=n-1, yoffs=1;
-		} else {
-			if(n < 15) xoffs=n-7, yoffs=2;
-			else xoffs=n-15, yoffs=3;
-		}
-		expanded_arr
-			[HEIGHT*yoffs + HEIGHT-(curr_node->getRAM().get(0xab)-0x80)]
-			[WIDTH *xoffs + curr_node->getRAM().get(0xaa)]++;
+		int x, y;
+		real_position(x, y, n, curr_node->getRAM().get(0xaa),
+			curr_node->getRAM().get(0xab));
+		expanded_arr[y][x]++;
 		if(!visited_screens[n]) {
 			visited_screens[n] = true;
 			std::cout << "Visited screen " << n << std::endl;
 		}
-
-//		std::cout << "Increasing (" << (HEIGHT*(n/4) + HEIGHT-curr_node->getRAM().get(0xab)-1) << ", " << (WIDTH *(n%4) + curr_node->getRAM().get(0xaa)) << ")\n";
-//		std::cout << "n=" << n <<", y="<<(int)curr_node->getRAM().get(0xab)<<"\n";
 	}
 #endif
 	bool add_ancestor = false;
@@ -196,7 +210,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 		if(!child->is_terminal) {
 			if((! (ignore_duplicates && test_duplicate(child)) ) &&
 			   ( child->num_nodes_reusable < max_nodes_per_frame )) {
-				// if life is lost, put it in the lower priority deque
+				// if life is lost, put it in the lower priority TNodePriorityQueue
 				if(child->getRAM().get(0xba) < current_lives) {
 					// enable NOOP if this is walking and kills
 					unsigned n=0;
@@ -210,7 +224,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 							std::cout << "noop pruned\n";
 						set_novelty_table( child->getRAM() );
 					}
-					low_q.push_back(child);
+					add_to_queue(child, low_q);
 				} else {
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
@@ -220,11 +234,11 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
 						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						m_positions_noop[pos] = n + 1;
-						q.push_front(curr_node->v_children[0]);
+						q.push(make_pair(1000000000,curr_node->v_children[0]));
 					} else {
 						set_novelty_table( child->getRAM() );
 					}
-					q.push_back(child);
+					add_to_queue(child, q);
 				}
 			} else {
 				set_novelty_table( child->getRAM() );
@@ -251,8 +265,10 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 				unset_novelty_table(ancestor->getRAM());
 				if(cousin->getRAM().get(0xba) == current_lives) {
 					unset_novelty_table(cousin->getRAM());
-					q.push_front(cousin);
+					q.push(make_pair(1000000000,cousin));
+#ifdef PRINT
 					std::cout << "Pushing (" << (int)cousin->getRAM().get(0xaa) << ", " << (int)cousin->getRAM().get(0xab) << ")\n";
+#endif
 					break; // We found a safe spot
 				}
 				ancestor = ancestor->p_parent;
@@ -278,7 +294,7 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 	}
 
 	// low_q contains nodes that lose a life
-	deque<TreeNode*> q, low_q;
+	TNodePriorityQueue q, low_q;
 	std::list< TreeNode* > pivots;
 	
 	//q.push(start_node);
@@ -311,11 +327,11 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 			// Pop a node to expand
 			TreeNode* curr_node;
 			if(!q.empty()) {
-				curr_node = q.front();
-				q.pop_front();
+				curr_node = q.top().second;
+				q.pop();
 			} else {
-				curr_node = low_q.front();
-				low_q.pop_front();
+				curr_node = low_q.top().second;
+				low_q.pop();
 			}
 	
 			if ( curr_node->depth() > m_reward_horizon - 1 ) continue;

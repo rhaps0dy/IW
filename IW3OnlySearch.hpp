@@ -7,7 +7,10 @@
 #include <environment/stella_environment.hpp>
 #include <map>
 
-#include <deque>
+#include <queue>
+#include <utility>
+
+typedef std::priority_queue<std::pair<int, TreeNode*> > TNodePriorityQueue;
 
 class IW3OnlySearch : public SearchTree {
     public:
@@ -18,7 +21,8 @@ class IW3OnlySearch : public SearchTree {
 	virtual void build(ALEState & state);
 		
 	virtual void update_tree();
-	virtual int  expand_node( TreeNode* n, std::deque<TreeNode*>& q, std::deque<TreeNode*>& low_q);
+	virtual int  expand_node( TreeNode* n, TNodePriorityQueue &q, TNodePriorityQueue &low_q);
+	void add_to_queue(TreeNode *n, TNodePriorityQueue &q);
 
 	int expanded() const { return m_expanded_nodes; }
 	int generated() const { return m_generated_nodes; }
@@ -56,6 +60,7 @@ public:
 	std::map<unsigned, unsigned> m_positions_noop;
 	unsigned m_max_noop_reopen;
 	unsigned m_noop_parent_depth;
+	int root_x, root_y;
 };
 
 
