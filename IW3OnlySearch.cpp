@@ -85,8 +85,9 @@ bool IW3OnlySearch::check_novelty_3( const ALERAM& machine_state )
 int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<TreeNode*>& low_q)
 {
 	int num_simulated_steps =0;
-	int num_actions = available_actions.size();
-	bool leaf_node = (curr_node->v_children.empty());
+	size_t num_actions = available_actions.size();
+	size_t initial_a = curr_node->v_children.size();
+	bool leaf_node = initial_a <= 1;
 	assert(frame_skip != 0);
 	static     int max_nodes_per_frame = max_sim_steps_per_frame / frame_skip;
 	m_expanded_nodes++;
@@ -95,7 +96,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 		curr_node->v_children.resize( num_actions );
 		curr_node->available_actions = available_actions;
 		if(m_randomize_successor)
-		    std::random_shuffle ( curr_node->available_actions.begin(), curr_node->available_actions.end()-1 );
+		    std::random_shuffle ( curr_node->available_actions.begin()+1, curr_node->available_actions.end());
 	
 	}
 #ifdef PRINT
@@ -126,7 +127,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 //		std::cout << "n=" << n <<", y="<<(int)curr_node->getRAM().get(0xab)<<"\n";
 	}
 #endif
-	for (int a = 0; a < num_actions; a++) {
+	for (size_t a = initial_a; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
 		
 		TreeNode * child;
@@ -194,48 +195,45 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 			if((! (ignore_duplicates && test_duplicate(child)) ) &&
 			   ( child->num_nodes_reusable < max_nodes_per_frame )) {
 				// if life is lost, put it in the lower priority queue
-				if(child->getRAM().get(0xba) < curr_node->getRAM().get(0xba)) {
-					low_q.push(child);
-					// Furthermore, enable NOOP if this is walking to the side and kills
+				auto current_lives = curr_node->getRAM().get(0xba);
+				if(child->getRAM().get(0xba) < current_lives) {
+					// enable NOOP if this is walking and kills
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
-					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT || act == PLAYER_A_UP)) {
-						TreeNode *nd = curr_node->p_parent;
-						unset_novelty_table(curr_node->getRAM());
-						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
-							q.push(*nd->v_children.rbegin());
-							unset_novelty_table(nd->getRAM());
-							nd = nd->p_parent;
+					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
+						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
+						TreeNode *ancestor = curr_node;
+						for(unsigned i=0; i<m_noop_parent_depth && ancestor; i++) {
+							TreeNode *cousin = ancestor;
+							for(unsigned j=i+1; j!=0; j--) {
+								if(cousin->v_children.empty()) {
+									cousin->v_children.push_back(new TreeNode(cousin,
+										cousin->state, this, PLAYER_A_NOOP, frame_skip));
+									num_simulated_steps += cousin->num_simulated_steps;
+								}
+								cousin = cousin->v_children[0];
+							}
+							unset_novelty_table(ancestor->getRAM());
+							if(cousin->getRAM().get(0xba) == current_lives) {
+								q.push(cousin);
+							}
+							ancestor = ancestor->p_parent;
 						}
 						m_positions_noop[pos] = n + 1;
-#ifdef PRINT
-						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
-							(int)curr_node->getRAM().get(0xaa) << ", " <<
-							(int)curr_node->getRAM().get(0xab) << ")\n";
-#endif
 					} else {
 						set_novelty_table( child->getRAM() );
 					}
+					low_q.push(child);
 				} else {
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
 					   child->getRAM().get(0xd8) != 0 &&
 					   curr_node->getRAM().get(0xd8) == 0 &&
 					   curr_node->getRAM().get(0xd6) == 0xff &&
-					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT || act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
-						TreeNode *nd = curr_node;
-						for(unsigned i=0; i<m_noop_parent_depth && nd; i++) {
-							unset_novelty_table(nd->getRAM());
-							nd = nd->p_parent;
-						}
-						if(nd != NULL)
-							q.push(*nd->v_children.rbegin());
+					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
+						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						m_positions_noop[pos] = n + 1;
-#ifdef PRINT
-						std::cout << "NOOP activated " << action_to_string(act) << " (" <<
-							(int)curr_node->getRAM().get(0xaa) << ", " <<
-							(int)curr_node->getRAM().get(0xab) << ")\n";
-#endif
+						q.push(curr_node->v_children[0]);
 					} else {
 						set_novelty_table( child->getRAM() );
 					}
@@ -253,7 +251,6 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, queue<TreeNode*>& q, queue<
 	}
 	return num_simulated_steps;
 }
-
 /* *********************************************************************
    Expands the tree from the given node until i_max_sim_steps_per_frame
    is reached

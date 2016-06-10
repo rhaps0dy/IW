@@ -51,10 +51,7 @@ SearchTree::SearchTree(Settings & settings,
     m_novelty_pruning = false;
 
 	// modified IW
-	assert(available_actions.size() == 8);
-	for(size_t i=0; i<7; i++)
-		available_actions[i] = available_actions[i+1];
-	available_actions[7] = PLAYER_A_NOOP;
+	assert(available_actions[0] == PLAYER_A_NOOP);
 }
 
 
