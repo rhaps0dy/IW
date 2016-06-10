@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
 	else
 		available_actions = ale.romSettings->getAllActions();
 	const int n_states_back = ale.getInt("n_states_back");
+	const int actions_no_recalc = ale.getInt("actions_no_recalc");
 
 	IW3OnlySearch search_tree(*ale.theSettings, available_actions, ale.environment.get());
 	search_tree.set_novelty_pruning();
@@ -60,26 +61,29 @@ int main(int argc, char *argv[]) {
 	// randomise initial situation
 	for(int i=0; i<rand()%30; i++)
 		ale.act(PLAYER_A_NOOP);
+	int n_iter=0;
     while(!ale.game_over()) {
 		ALEState state=ale.cloneSystemState();
 		const ALEScreen saved_screen=ale.getScreen();
 		if (search_tree.is_built ) {
 			// Re-use the old tree
 			search_tree.move_to_best_sub_branch();
-			if(search_tree.get_root()->state.equals(state)) {
-				search_tree.update_tree();
-			} else {
-				search_tree.clear();
-				search_tree.build(state);
+			if(n_iter % actions_no_recalc == 0) {
+				if(search_tree.get_root()->state.equals(state)) {
+					search_tree.update_tree();
+				} else {
+					search_tree.clear();
+					search_tree.build(state);
+				}
 			}
 		} else {
 			// Build a new Search-Tree
 			search_tree.clear();
 			search_tree.build(state);
 		}
-		Action action = search_tree.get_best_action();
 		ale.restoreSystemState(state);
 		ale.environment->m_screen = saved_screen;
+		Action action = search_tree.get_best_action();
 		reward_t r = ale.act(action);
 		total_reward += r;
 		fstream action_reward, statef;
@@ -89,6 +93,7 @@ int main(int argc, char *argv[]) {
 		statef.open(record_dir + "/state_" + trajectory_suffix, fstream::app);
 		statef << ale.cloneSystemState().serialize() << "<endstate>";
 		statef.close();
+		n_iter++;
     }
     return 0;
 }
