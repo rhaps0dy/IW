@@ -84,6 +84,8 @@ int main(int argc, char *argv[]) {
 		ale.restoreSystemState(state);
 		ale.environment->m_screen = saved_screen;
 		Action action = search_tree.get_best_action();
+		if(action == UNDEFINED)
+			continue;
 		reward_t r = ale.act(action);
 		total_reward += r;
 		fstream action_reward, statef;

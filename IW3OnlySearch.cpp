@@ -245,6 +245,8 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 						cousin->v_children.push_back(new TreeNode(cousin,
 							cousin->state, this, PLAYER_A_NOOP, frame_skip));
 						num_simulated_steps += cousin->num_simulated_steps;
+						cousin->best_branch = 0;
+						cousin->available_actions.push_back(PLAYER_A_NOOP);
 					}
 					cousin = cousin->v_children[0];
 				}
