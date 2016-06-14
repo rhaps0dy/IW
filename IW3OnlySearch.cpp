@@ -127,7 +127,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 //		std::cout << "n=" << n <<", y="<<(int)curr_node->getRAM().get(0xab)<<"\n";
 	}
 #endif
-	bool add_ancestor_kill = false, add_ancestor_fall;
+	bool add_ancestor_kill = false, add_ancestor_fall = false;
 	auto current_lives = curr_node->getRAM().get(0xba);
 	for (size_t a = initial_a; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
@@ -257,7 +257,6 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 				   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
 					unset_novelty_table(cousin->getRAM());
 					q.push_front(cousin);
-					std::cout << "Pushing (" << (int)cousin->getRAM().get(0xaa) << ", " << (int)cousin->getRAM().get(0xab) << ")\n";
 					break; // We found a safe spot
 				}
 				ancestor = ancestor->p_parent;
