@@ -127,7 +127,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 //		std::cout << "n=" << n <<", y="<<(int)curr_node->getRAM().get(0xab)<<"\n";
 	}
 #endif
-	bool add_ancestor = false;
+	bool add_ancestor_kill = false, add_ancestor_fall;
 	auto current_lives = curr_node->getRAM().get(0xba);
 	for (size_t a = initial_a; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
@@ -203,8 +203,9 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
 						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
-						add_ancestor = true;
-						m_positions_noop[pos] = n + 1;
+						if(!add_ancestor_kill)
+							m_positions_noop[pos] = n + 1;
+						add_ancestor_kill = true;
 					} else {
 						if(n >= m_max_noop_reopen)
 							std::cout << "noop pruned\n";
@@ -219,8 +220,9 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 					   curr_node->getRAM().get(0xd6) == 0xff &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
 						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
-						m_positions_noop[pos] = n + 1;
-						q.push_front(curr_node->v_children[0]);
+						if(!add_ancestor_fall)
+							m_positions_noop[pos] = n + 1;
+						add_ancestor_fall = true;
 					} else {
 						set_novelty_table( child->getRAM() );
 					}
@@ -236,7 +238,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 #endif
 		}
 	}
-	if(add_ancestor) {
+	if(add_ancestor_kill || add_ancestor_fall) {
 		TreeNode *ancestor = curr_node;
 		for(unsigned i=0; i<m_noop_parent_depth && ancestor; i++) {
 				TreeNode *cousin = ancestor;
@@ -251,7 +253,8 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 					cousin = cousin->v_children[0];
 				}
 				unset_novelty_table(ancestor->getRAM());
-				if(cousin->getRAM().get(0xba) == current_lives) {
+				if((add_ancestor_kill && cousin->getRAM().get(0xba) == current_lives) ||
+				   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
 					unset_novelty_table(cousin->getRAM());
 					q.push_front(cousin);
 					std::cout << "Pushing (" << (int)cousin->getRAM().get(0xaa) << ", " << (int)cousin->getRAM().get(0xab) << ")\n";
