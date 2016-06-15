@@ -404,7 +404,7 @@ void IW3OnlySearch::update_branch_return(TreeNode* node) {
 	// Now that all the children are updated, we can update the branch-reward
 	float best_return = -1;
 	int best_branch = -1;
-	return_t avg = 0;
+	//return_t avg = 0;
 
 	// Terminal nodes encur no reward beyond immediate
 	if (node->is_terminal) {
@@ -415,15 +415,15 @@ void IW3OnlySearch::update_branch_return(TreeNode* node) {
 	    
 		for (size_t a = 0; a < node->v_children.size(); a++) {	
 			return_t child_return = node->v_children[a]->branch_return;
-			if (best_branch == -1 || child_return > best_return) {
+			if (best_branch == -1 || child_return >= best_return) {
 				best_return = child_return;
 				best_branch = a;
-				avg+=child_return;
+				//avg+=child_return;
 			}
 			if( node->v_children[a]->branch_depth > node->branch_depth  ) 
 				node->branch_depth = node->v_children[a]->branch_depth;
 
-			if( node->v_children.size() ) avg/=node->v_children.size();
+			//if( node->v_children.size() ) avg/=node->v_children.size();
 		}
 	}
 
