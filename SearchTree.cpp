@@ -17,6 +17,7 @@
 #include "random_tools.h"
 #include <emucore/m6502/src/System.hxx>
 #include <cassert>
+#include <vector>
 
 using namespace std;
 
@@ -78,11 +79,16 @@ SearchTree::~SearchTree(void) {
 /* *********************************************************************
 	Returns the best action based on the expanded search tree
  ******************************************************************* */
-Action SearchTree::get_best_action(void) {
+void SearchTree::get_best_action(std::deque<Action> &sequence,
+		std::deque<return_t> &sequence_return) {
 	assert (p_root != NULL);
 	int best_branch = p_root->best_branch;
 	if(best_branch == -1) {
-		return UNDEFINED;
+		sequence.resize(1);
+		sequence_return.resize(1);
+		sequence[0] = UNDEFINED;
+		sequence_return[0] = -100000;
+		return;
 	}
 	TreeNode* best_child = p_root->v_children[best_branch];
 	vector<int> best_branches;
@@ -95,11 +101,9 @@ Action SearchTree::get_best_action(void) {
 				
 		if (c != (size_t)best_branch && 
 		    curr_child->branch_return == best_child->branch_return && 
-		    curr_child->is_terminal == best_child->is_terminal &&
 			// Minimum depth if all branches return zero
-			!(best_child->branch_return == 0 && best_child->branch_depth < 12)) {
+			!(curr_child->branch_return == 0 && curr_child->branch_depth < 6)) {
 			best_branches.push_back(c);
-			
 		}
 	}
 	// not a problem if best_branches.size() == 0
@@ -121,12 +125,17 @@ Action SearchTree::get_best_action(void) {
 	// 	// when we have more than one best-branch, pick one randomly
 	 	best_branch = choice(&best_branches);
 	}
+	p_root->best_branch = best_branch;
 	TreeNode *nn = p_root;
-	std::cout << "Best trajectory:";
+	sequence.clear();
+	sequence_return.clear();
+//	std::cout << "Best trajectory:";
 	while(nn->v_children.size() != 0) {
-		std::cout << " " << action_to_string(nn->available_actions[nn->best_branch]) << " " << nn->node_reward;
+//		std::cout << " " << action_to_string(nn->available_actions[nn->best_branch]) << " " << nn->node_reward;
+		sequence.push_back(nn->available_actions[nn->best_branch]);
+		sequence_return.push_back(nn->branch_return);
 		TreeNode *child = nn->v_children[nn->best_branch];
-		printf(" (%d, %d)\n", child->getRAM().get(0xAA), child->getRAM().get(0xAB));
+//		printf(" (%d, %d)\n", child->getRAM().get(0xAA), child->getRAM().get(0xAB));
 		nn = child;
 	}
 //	std::cout << "\nCurrent position: " << m_env->getRAM().get(0xAA) << ' ' << m_env->getRAM().get(0xAB) << std::endl;
@@ -136,11 +145,6 @@ Action SearchTree::get_best_action(void) {
 		std::cout << "Action: " << action_to_string(curr_child->act) << " Depth: " << curr_child->branch_depth  <<" NumNodes: " << curr_child->num_nodes() << " Reward: "<< curr_child->branch_return   << std::endl;
 	
 	}
-	
-	
-	p_root->best_branch = best_branch;
-	
-	return p_root->available_actions[best_branch];
 }
 
 
@@ -210,7 +214,7 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
                 		bool discount_return, bool save_state) {
 
 	// Load the state into the emulator - a copy of the parent state
-	m_env->restoreSystemState(state);
+	m_env->restoreState(state);
 
 
 	// For discounting purposes
@@ -262,7 +266,7 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 
 	// Save the result
 	if(save_state) {
-		state = m_env->cloneSystemState();
+		state = m_env->cloneState();
 		for(int i=0x80; i<0x100; i++)
 			*ram.byte(i) = m_env->getSystem().peek(i);
 	}

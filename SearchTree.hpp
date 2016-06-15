@@ -17,6 +17,7 @@
 #define __SEARCH_TREE_HPP__
 
 #include <queue>
+#include <deque>
 #include "TreeNode.hpp"
 #include <fstream>
 #include <limits>
@@ -66,7 +67,7 @@ class SearchTree {
 		/* *********************************************************************
             Returns the best action based on the expanded search tree
          ******************************************************************* */
-		virtual Action get_best_action(void);	
+	virtual void get_best_action(std::deque<Action> &sequence, std::deque<return_t> &sequence_return);	
 
 		/* *********************************************************************
 			Moves the best sub-branch of the root to be the new root of the tree

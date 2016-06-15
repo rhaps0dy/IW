@@ -56,6 +56,10 @@ public:
 	std::map<unsigned, unsigned> m_positions_noop;
 	unsigned m_max_noop_reopen;
 	unsigned m_noop_parent_depth;
+	static constexpr size_t N_SCREENS = 24;
+	bool visited_screens[N_SCREENS], pruned_screens[N_SCREENS];
+	double m_prune_screens_prob;
+	bool first_visited;
 };
 
 

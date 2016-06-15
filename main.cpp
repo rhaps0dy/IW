@@ -11,12 +11,16 @@
 #include<memory>
 #include<stdexcept>
 #include<cstdlib>
+#include<deque>
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
 	ALEInterface ale;
 	ale.loadROM(ale.getString("rom_file"));
+	// randomise initial situation
+	for(int i=0; i<rand()%30; i++)
+		ale.act(PLAYER_A_NOOP);
 
 	string trajectory_suffix = ale.getString("trajectory_suffix");
 	string record_dir = ale.getString("record_screen_dir");
@@ -58,20 +62,25 @@ int main(int argc, char *argv[]) {
 			ale.restoreSystemState(ALEState(state_s));
 		}
 	}
-	// randomise initial situation
-	for(int i=0; i<rand()%30; i++)
-		ale.act(PLAYER_A_NOOP);
 	int n_iter=0;
+	Action action = UNDEFINED;
+	deque<Action> sequence_old;
+	deque<return_t> sequence_return_old ;
+	sequence_return_old.push_front(-10000000);
     while(!ale.game_over()) {
-		ALEState state=ale.cloneSystemState();
+		ALEState state=ale.cloneState();
 		const ALEScreen saved_screen=ale.getScreen();
 		if (search_tree.is_built ) {
 			// Re-use the old tree
-			search_tree.move_to_best_sub_branch();
 			if(n_iter % actions_no_recalc == 0) {
 				if(search_tree.get_root()->state.equals(state)) {
 					search_tree.update_tree();
 				} else {
+					fstream action_reward;
+					action_reward.open(record_dir + "/action_reward_" + trajectory_suffix, fstream::app);
+					action_reward << "Search tree does not coincide\n";
+					cout << "Search tree does not coincide\n";
+					action_reward.close();
 					search_tree.clear();
 					search_tree.build(state);
 				}
@@ -81,18 +90,28 @@ int main(int argc, char *argv[]) {
 			search_tree.clear();
 			search_tree.build(state);
 		}
-		ale.restoreSystemState(state);
+		ale.restoreState(state);
 		ale.environment->m_screen = saved_screen;
-		Action action = search_tree.get_best_action();
-		if(action == UNDEFINED) {
-			if(search_tree.get_root()->state.equals(state)) {
-				search_tree.update_tree();
-			} else {
-				search_tree.clear();
-				search_tree.build(state);
-			}
-			action = search_tree.get_best_action();
+		deque<Action> sequence;
+		deque<return_t> sequence_return;
+		search_tree.get_best_action(sequence, sequence_return);
+		if(sequence_return_old.empty() ||
+			sequence_return.front() >= sequence_return_old.front()) {
+			sequence_old = sequence;
+			sequence_return_old = sequence_return;
+			cout << "New action sequence:\n";
+			for(size_t i = sequence.size()-1; i<sequence.size(); i--)
+				cout << " " << action_to_string(sequence[i]) << " " << sequence_return[i] << endl;
 		}
+		action = sequence_old.front();
+		sequence_old.pop_front();
+		sequence_return_old.pop_front();
+		if(action == UNDEFINED) {
+			n_iter = 0;
+			continue;
+		}
+		search_tree.move_to_best_sub_branch();
+
 		reward_t r = ale.act(action);
 		total_reward += r;
 		fstream action_reward, statef;
@@ -100,7 +119,7 @@ int main(int argc, char *argv[]) {
 		action_reward << static_cast<int>(action) << " " << r << " " << total_reward << endl;
 		action_reward.close();
 		statef.open(record_dir + "/state_" + trajectory_suffix, fstream::app);
-		statef << ale.cloneSystemState().serialize() << "<endstate>";
+		statef << ale.cloneState().serialize() << "<endstate>";
 		statef.close();
 		n_iter++;
     }

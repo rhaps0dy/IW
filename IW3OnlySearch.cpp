@@ -2,13 +2,15 @@
 #include "SearchTree.hpp"
 #include <list>
 #include <cassert>
+#include <utility>
+#include <random>
 
 using namespace std;
 
 #ifdef OUTPUT_EXPLORE
 constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=4, N_WIDTH=9;
-static int expanded_arr[HEIGHT*N_HEIGHT][WIDTH*N_WIDTH] = {0};
-static bool visited_screens[24] = {false};
+static vector<int> expanded_arr(HEIGHT*N_HEIGHT*WIDTH*N_WIDTH, 0);
+static int exparr_i = 0;
 #endif
 
 IW3OnlySearch::IW3OnlySearch(Settings &settings,
@@ -24,6 +26,8 @@ IW3OnlySearch::IW3OnlySearch(Settings &settings,
 	m_pos_novelty_table = new aptk::Bit_Matrix( 24, 256 * 256 );
 	m_max_noop_reopen = settings.getInt( "iw3_max_noop_reopen", 0 );
 	m_noop_parent_depth = settings.getInt( "iw3_noop_parent_depth", 0 );
+	m_prune_screens_prob = settings.getFloat( "iw3_prune_screens_prob", 0 );
+	first_visited = true;
 }
 
 IW3OnlySearch::~IW3OnlySearch() {
@@ -66,16 +70,33 @@ void IW3OnlySearch::unset_novelty_table( const ALERAM& machine_state )
 	if(s >= 24) return;
 	m_pos_novelty_table->unset(s, machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
 }
+
+static default_random_engine generator;
+
 void IW3OnlySearch::set_novelty_table( const ALERAM& machine_state )
 {
-	m_pos_novelty_table->set( machine_state.get(0x03),
+	auto screen = machine_state.get(0x03);
+	if(!visited_screens[screen]) {
+		std::uniform_real_distribution<double> d;
+		cout << "Visited screen " << (int)screen;
+		if(!first_visited && d(generator) < m_prune_screens_prob) {
+			pruned_screens[screen] = true;
+			cout << " PRUNED";
+		}
+		visited_screens[screen] = true;
+		cout << endl;
+		first_visited = false;
+	}
+	m_pos_novelty_table->set(screen,
 		machine_state.get(0x2a)*256 + machine_state.get(0x2b) );
 }
 
 bool IW3OnlySearch::check_novelty_3( const ALERAM& machine_state )
 {
+	auto screen = machine_state.get(0x03);
+	if(pruned_screens[screen]) return false;
 	for ( size_t i = 0; i < machine_state.size(); i++ )	{
-		if ( !m_pos_novelty_table->isset( machine_state.get(0x03),
+		if ( !m_pos_novelty_table->isset( screen,
 				machine_state.get(0x2a)*256 + machine_state.get(0x2b) ))
 			return true;
 	}
@@ -115,9 +136,9 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 			if(n < 15) xoffs=n-7, yoffs=2;
 			else xoffs=n-15, yoffs=3;
 		}
-		expanded_arr
-			[HEIGHT*yoffs + HEIGHT-(curr_node->getRAM().get(0xab)-0x80)]
-			[WIDTH *xoffs + curr_node->getRAM().get(0xaa)]++;
+		expanded_arr[
+			(HEIGHT*yoffs + HEIGHT-(curr_node->getRAM().get(0xab)-0x80))*N_WIDTH*WIDTH +
+			(WIDTH *xoffs + curr_node->getRAM().get(0xaa))]++;
 		if(!visited_screens[n]) {
 			visited_screens[n] = true;
 			std::cout << "Visited screen " << n << std::endl;
@@ -201,15 +222,13 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 					// enable NOOP if this is walking and kills
 					unsigned n=0;
 					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
+					   child->getRAM().get(0xd8) == 0x00 &&
+					   child->getRAM().get(0xd6) == 0xFF &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
 						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						if(!add_ancestor_kill)
 							m_positions_noop[pos] = n + 1;
 						add_ancestor_kill = true;
-					} else {
-						if(n >= m_max_noop_reopen)
-							std::cout << "noop pruned\n";
-						set_novelty_table( child->getRAM() );
 					}
 					low_q.push_back(child);
 				} else {
@@ -257,6 +276,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 				   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
 					unset_novelty_table(cousin->getRAM());
 					q.push_front(cousin);
+//					cout << "Backed up " << i << " positions\n";
 					break; // We found a safe spot
 				}
 				ancestor = ancestor->p_parent;
@@ -280,6 +300,13 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 		}
 	    }
 	}
+	fill(visited_screens, visited_screens+N_SCREENS, false);
+	fill(pruned_screens, pruned_screens+N_SCREENS, false);
+	first_visited = true;
+#ifdef OUTPUT_EXPLORE
+	fill(expanded_arr.begin(), expanded_arr.end(), 0);
+#endif // OUTPUT_EXPLORE
+
 
 	// low_q contains nodes that lose a life
 	deque<TreeNode*> q, low_q;
@@ -349,17 +376,19 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 
 	} while ( !pivots.empty() );
 #ifdef OUTPUT_EXPLORE
-	ofstream exparr("exparr.txt");
+	ostringstream fname;
+	fname << "exparr_" << exparr_i << ".txt";
+	ofstream exparr(fname.str());
 	exparr << '[';
 	for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
 		exparr << '[';
 		for(int j=0; j<WIDTH*N_WIDTH; j++)
-			exparr << expanded_arr[i][j] << ",";
+			exparr << expanded_arr[i*WIDTH*N_WIDTH + j] << ",";
 		exparr << "],\n";
 	}
 	exparr << "]\n";
 	exparr.close();
-	assert(false);
+	exparr_i ++;
 #endif
 
 	update_branch_return(start_node);
