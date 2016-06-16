@@ -95,11 +95,9 @@ bool IW3OnlySearch::check_novelty_3( const ALERAM& machine_state )
 {
 	auto screen = machine_state.get(0x03);
 	if(pruned_screens[screen]) return false;
-	for ( size_t i = 0; i < machine_state.size(); i++ )	{
-		if ( !m_pos_novelty_table->isset( screen,
-				machine_state.get(0x2a)*256 + machine_state.get(0x2b) ))
-			return true;
-	}
+	if ( !m_pos_novelty_table->isset( screen,
+			machine_state.get(0x2a)*256 + machine_state.get(0x2b) ))
+		return true;
 	return false;
 }
 
@@ -109,6 +107,8 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 	size_t num_actions = available_actions.size();
 	size_t initial_a = curr_node->v_children.size();
 	bool leaf_node = initial_a <= 1;
+	if(!leaf_node)
+		initial_a = 0;
 	assert(frame_skip != 0);
 	static     int max_nodes_per_frame = max_sim_steps_per_frame / frame_skip;
 	m_expanded_nodes++;
@@ -149,6 +149,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 	}
 #endif
 	bool add_ancestor_kill = false, add_ancestor_fall = false;
+
 	auto current_lives = curr_node->getRAM().get(0xba);
 	for (size_t a = initial_a; a < num_actions; a++) {
 		Action act = curr_node->available_actions[a];
@@ -165,6 +166,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 						frame_skip); 
 			if (check_novelty_3(child->getRAM() ) ) {
 				// child->is_terminal is already false
+				child->is_terminal = false;
 			}
 			else{
 				curr_node->v_children[a] = child;
@@ -259,21 +261,27 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 	}
 	if(add_ancestor_kill || add_ancestor_fall) {
 		TreeNode *ancestor = curr_node;
+		if(add_ancestor_kill)
+			std::cout << "Going back " << action_to_string(curr_node->act);
 		for(unsigned i=0; i<m_noop_parent_depth && ancestor; i++) {
-				TreeNode *cousin = ancestor;
-				for(unsigned j=i+1; j!=0; j--) {
-					if(cousin->v_children.empty()) {
-						cousin->v_children.push_back(new TreeNode(cousin,
-							cousin->state, this, PLAYER_A_NOOP, frame_skip));
-						num_simulated_steps += cousin->num_simulated_steps;
-						cousin->best_branch = 0;
-						cousin->available_actions.push_back(PLAYER_A_NOOP);
-					}
-					cousin = cousin->v_children[0];
+			if(add_ancestor_kill && ancestor->act != curr_node->act) {
+				std::cout << " Failed! " << action_to_string(ancestor->act);
+				continue;
+			}
+			TreeNode *cousin = ancestor;
+			for(unsigned j=i+1; j!=0; j--) {
+				if(cousin->v_children.empty()) {
+					cousin->v_children.push_back(new TreeNode(cousin,
+															  cousin->state, this, PLAYER_A_NOOP, frame_skip));
+					num_simulated_steps += cousin->num_simulated_steps;
+					cousin->best_branch = 0;
+					cousin->available_actions.push_back(PLAYER_A_NOOP);
 				}
-				unset_novelty_table(ancestor->getRAM());
-				if((add_ancestor_kill && cousin->getRAM().get(0xba) == current_lives) ||
-				   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
+				cousin = cousin->v_children[0];
+			}
+			unset_novelty_table(ancestor->getRAM());
+			if((add_ancestor_kill && cousin->getRAM().get(0xba) == current_lives) ||
+			   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
 					unset_novelty_table(cousin->getRAM());
 					q.push_front(cousin);
 //					cout << "Backed up " << i << " positions\n";
@@ -376,8 +384,9 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 
 	} while ( !pivots.empty() );
 #ifdef OUTPUT_EXPLORE
+	if(q.empty()) {
 	ostringstream fname;
-	fname << "exparr_" << exparr_i << ".txt";
+	fname << "empty_exparr_" << exparr_i << ".txt";
 	ofstream exparr(fname.str());
 	exparr << '[';
 	for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
@@ -389,6 +398,7 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 	exparr << "]\n";
 	exparr.close();
 	exparr_i ++;
+	}
 #endif
 
 	update_branch_return(start_node);

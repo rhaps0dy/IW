@@ -82,6 +82,11 @@ SearchTree::~SearchTree(void) {
 void SearchTree::get_best_action(std::deque<Action> &sequence,
 		std::deque<return_t> &sequence_return) {
 	assert (p_root != NULL);
+	for (size_t c = 0; c < p_root->v_children.size(); c++) {
+		if(p_root->v_children[c]->branch_return >
+			p_root->v_children[p_root->best_branch]->branch_return)
+			p_root->best_branch = c;
+	}
 	int best_branch = p_root->best_branch;
 	if(best_branch == -1) {
 		sequence.resize(1);
@@ -104,6 +109,7 @@ void SearchTree::get_best_action(std::deque<Action> &sequence,
 			// Minimum depth if all branches return zero
 			!(curr_child->branch_return == 0 && curr_child->branch_depth < 6)) {
 			best_branches.push_back(c);
+			cout << "pushed branch " << curr_child->branch_depth  << '\n';
 		}
 	}
 	// not a problem if best_branches.size() == 0
