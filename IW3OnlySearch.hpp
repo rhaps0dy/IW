@@ -53,7 +53,6 @@ public:
 	unsigned		m_pruned_nodes;
 	bool			m_stop_on_first_reward;
 	unsigned		m_reward_horizon;	
-	std::map<unsigned, unsigned> m_positions_noop;
 	unsigned m_max_noop_reopen;
 	unsigned m_noop_parent_depth;
 	static constexpr size_t N_SCREENS = 24;

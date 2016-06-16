@@ -4,6 +4,7 @@
 #include <cassert>
 #include <utility>
 #include <random>
+#include <cstdio>
 
 using namespace std;
 
@@ -117,8 +118,8 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 		curr_node->v_children.resize( num_actions );
 		curr_node->available_actions = available_actions;
 		if(m_randomize_successor)
-		    std::random_shuffle ( curr_node->available_actions.begin()+1, curr_node->available_actions.end());
-	
+		    std::random_shuffle(curr_node->available_actions.begin()+1,
+								curr_node->available_actions.end());
 	}
 #ifdef PRINT
 	std::cout << "Expanding node (" <<
@@ -149,6 +150,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 	}
 #endif
 	bool add_ancestor_kill = false, add_ancestor_fall = false;
+	TreeNode *add_ancestor_node = NULL;
 
 	auto current_lives = curr_node->getRAM().get(0xba);
 	for (size_t a = initial_a; a < num_actions; a++) {
@@ -211,46 +213,38 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 			(int)child->getRAM().get(0xaa) << ", " <<
 			(int)child->getRAM().get(0xab) << ") ";
 #endif
-		unsigned pos = (((unsigned)curr_node->getRAM().get(0x83)) * 256 +
-				   ((unsigned)curr_node->getRAM().get(0xaa))) * 256 +
-			((unsigned)curr_node->getRAM().get(0xaa));
-		auto f = m_positions_noop.find(pos);
 		// Don't expand duplicate nodes, or terminal nodes
+		set_novelty_table( child->getRAM() );
 		if(!child->is_terminal) {
 			if((! (ignore_duplicates && test_duplicate(child)) ) &&
 			   ( child->num_nodes_reusable < max_nodes_per_frame )) {
 				// if life is lost, put it in the lower priority deque
 				if(child->getRAM().get(0xba) < current_lives) {
 					// enable NOOP if this is walking and kills
-					unsigned n=0;
-					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
-					   child->getRAM().get(0xd8) == 0x00 &&
+					if(child->getRAM().get(0xd8) == 0x00 &&
 					   child->getRAM().get(0xd6) == 0xFF &&
+					   curr_node->getRAM().get(0xd8) == 0x00 &&
+					   curr_node->getRAM().get(0xd6) == 0xFF &&
 					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
 						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
-						if(!add_ancestor_kill)
-							m_positions_noop[pos] = n + 1;
 						add_ancestor_kill = true;
+						add_ancestor_node = child;
 					}
 					low_q.push_back(child);
 				} else {
-					unsigned n=0;
-					if((f == m_positions_noop.end() || (n=f->second) < m_max_noop_reopen) &&
-					   child->getRAM().get(0xd8) != 0 &&
+					if(child->getRAM().get(0xd8) != 0 &&
 					   curr_node->getRAM().get(0xd8) == 0 &&
 					   curr_node->getRAM().get(0xd6) == 0xff &&
-					   (act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
-						act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
-						if(!add_ancestor_fall)
-							m_positions_noop[pos] = n + 1;
+						(act == PLAYER_A_DOWN || act == PLAYER_A_LEFT ||
+						 act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						add_ancestor_fall = true;
+						add_ancestor_node = child;
+						if(act == PLAYER_A_DOWN)
+							q.push_back(child);
 					} else {
-						set_novelty_table( child->getRAM() );
+						q.push_back(child);
 					}
-					q.push_back(child);
 				}
-			} else {
-				set_novelty_table( child->getRAM() );
 			}
 #ifdef PRINT
 			std::cout << "EXPANDED\n";
@@ -260,35 +254,66 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 		}
 	}
 	if(add_ancestor_kill || add_ancestor_fall) {
+		TreeNode *prev_ancestor = add_ancestor_node;
 		TreeNode *ancestor = curr_node;
-		if(add_ancestor_kill)
-			std::cout << "Going back " << action_to_string(curr_node->act);
-		for(unsigned i=0; i<m_noop_parent_depth && ancestor; i++) {
-			if(add_ancestor_kill && ancestor->act != curr_node->act) {
-				std::cout << " Failed! " << action_to_string(ancestor->act);
+		for(unsigned i=0; i<m_noop_parent_depth && ancestor;
+			i++, prev_ancestor = ancestor, ancestor = ancestor->p_parent) {
+			if(ancestor->getRAM().get(0xd6) != 0xff ||
+			   ancestor->getRAM().get(0xd8) != 0)
 				continue;
-			}
 			TreeNode *cousin = ancestor;
+			cousin->is_terminal = false;
 			for(unsigned j=i+1; j!=0; j--) {
 				if(cousin->v_children.empty()) {
-					cousin->v_children.push_back(new TreeNode(cousin,
-															  cousin->state, this, PLAYER_A_NOOP, frame_skip));
+					cousin->v_children.push_back(
+						new TreeNode(cousin, cousin->state, this, PLAYER_A_NOOP,
+						frame_skip));
 					num_simulated_steps += cousin->num_simulated_steps;
 					cousin->best_branch = 0;
 					cousin->available_actions.push_back(PLAYER_A_NOOP);
 				}
 				cousin = cousin->v_children[0];
+				cousin->is_terminal = false;
 			}
-			unset_novelty_table(ancestor->getRAM());
-			if((add_ancestor_kill && cousin->getRAM().get(0xba) == current_lives) ||
-			   (add_ancestor_fall && cousin->getRAM().get(0xd6) == 0xff && cousin->getRAM().get(0xd8) == 0x00)) {
-					unset_novelty_table(cousin->getRAM());
-					q.push_front(cousin);
-//					cout << "Backed up " << i << " positions\n";
-					break; // We found a safe spot
+			if(cousin->getRAM().get(0xba) == current_lives &&
+			   cousin->getRAM().get(0xd6) == 0xff &&
+			   cousin->getRAM().get(0xd8) == 0x00) {
+				const Action a = prev_ancestor->act;
+				/*printf("Node (%x,%x,%d) taking action ",
+					   cousin->getRAM().get(0xaa),
+					   cousin->getRAM().get(0xab),
+					   cousin->getRAM().get(0x83));*/
+				//cout << action_to_string(a) << ':';
+				for(unsigned reopen=0; reopen<m_max_noop_reopen; reopen++) {
+					//printf(" %u", reopen);
+					TreeNode one(cousin, cousin->state, this, a, frame_skip);
+					TreeNode two(&one, one.state, this, a, frame_skip);
+					num_simulated_steps += one.num_simulated_steps + two.num_simulated_steps;
+					if(two.getRAM().get(0xba) == current_lives &&
+					   two.getRAM().get(0xd6) == 0xff &&
+					   two.getRAM().get(0xd8) == 0x00) {
+						unset_novelty_table(one.getRAM());
+						unset_novelty_table(two.getRAM());
+						q.push_front(cousin);
+						//printf(" safe!");
+						i = m_noop_parent_depth;
+						break; // We found a safe spot
+					} else {
+						if(cousin->v_children.empty()) {
+							cousin->v_children.push_back(
+								new TreeNode(cousin, cousin->state, this, PLAYER_A_NOOP,
+											 frame_skip));
+							num_simulated_steps += cousin->num_simulated_steps;
+							cousin->best_branch = 0;
+							cousin->available_actions.push_back(PLAYER_A_NOOP);
+						}
+						cousin = cousin->v_children[0];
+						cousin->is_terminal = false;
+					}
 				}
-				ancestor = ancestor->p_parent;
+				//cout << endl;
 			}
+		}
 	}
 	return num_simulated_steps;
 }
@@ -383,25 +408,27 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 		}
 
 	} while ( !pivots.empty() );
+
+	printf("Updating branch return\n");
+	update_branch_return(start_node);
+
 #ifdef OUTPUT_EXPLORE
-	if(q.empty()) {
-	ostringstream fname;
-	fname << "empty_exparr_" << exparr_i << ".txt";
-	ofstream exparr(fname.str());
-	exparr << '[';
-	for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
+	if(q.empty() || visited_screens[12]) {
+		ostringstream fname;
+		fname << "empty_exparr_" << exparr_i << ".txt";
+		ofstream exparr(fname.str());
 		exparr << '[';
-		for(int j=0; j<WIDTH*N_WIDTH; j++)
-			exparr << expanded_arr[i*WIDTH*N_WIDTH + j] << ",";
-		exparr << "],\n";
-	}
-	exparr << "]\n";
-	exparr.close();
-	exparr_i ++;
+		for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
+			exparr << '[';
+			for(int j=0; j<WIDTH*N_WIDTH; j++)
+				exparr << expanded_arr[i*WIDTH*N_WIDTH + j] << ",";
+			exparr << "],\n";
+		}
+		exparr << "]\n";
+		exparr.close();
+		exparr_i ++;
 	}
 #endif
-
-	update_branch_return(start_node);
 }
 
 void IW3OnlySearch::clear()
@@ -409,7 +436,6 @@ void IW3OnlySearch::clear()
 	SearchTree::clear();
 
 	m_pos_novelty_table->clear();
-	m_positions_noop.clear();
 }
 
 void IW3OnlySearch::move_to_best_sub_branch() 
@@ -454,10 +480,13 @@ void IW3OnlySearch::update_branch_return(TreeNode* node) {
 	    
 		for (size_t a = 0; a < node->v_children.size(); a++) {	
 			return_t child_return = node->v_children[a]->branch_return;
-			if (best_branch == -1 || child_return >= best_return) {
+			if (best_branch == -1 || child_return > best_return) {
 				best_return = child_return;
 				best_branch = a;
 				//avg+=child_return;
+			} else if(child_return == best_return) {
+				if( node->v_children[a]->branch_depth > node->v_children[best_branch]->branch_depth  ) 
+					best_branch = a;
 			}
 			if( node->v_children[a]->branch_depth > node->branch_depth  ) 
 				node->branch_depth = node->v_children[a]->branch_depth;
