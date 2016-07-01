@@ -4,9 +4,16 @@ Original code by [Lipovetzky, Ramirez and
 Geffner](https://github.com/miquelramirez/ALE-Atari-Width). Code license GPLv2.
 
 Needs the [modified Arcade Learning
-Environment](https://github.com/rhaps0dy/ALE-montezuma-modified) and `cmake` to
-work.
+Environment](https://github.com/rhaps0dy/ALE-montezuma-modified) to work.
 
+Compile using CMake:
+
+```
+$ cmake .
+$ make
+```
+
+##Contents
 Each of the directories under `runs` contains:
 
 - `action_reward_montezuma_iw.1`: list of the actions taken and their rewards.
