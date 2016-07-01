@@ -3,7 +3,9 @@
 Original code by [Lipovetzky, Ramirez and
 Geffner](https://github.com/miquelramirez/ALE-Atari-Width). Code license GPLv2.
 
-Needs the modified Arcade Learning Environment and `cmake` to work.
+Needs the [modified Arcade Learning
+Environment](https://github.com/rhaps0dy/ALE-montezuma-modified) and `cmake` to
+work.
 
 Each of the directories under `runs` contains:
 
