@@ -1,6 +1,7 @@
 #IW(3) on position
 
-Original code by Lipovetzky, Ramirez and Geffner. Code license GPLv2.
+Original code by [Lipovetzky, Ramirez and
+Geffner](https://github.com/miquelramirez/ALE-Atari-Width). Code license GPLv2.
 
 Needs the modified Arcade Learning Environment and `cmake` to work.
 
@@ -24,3 +25,12 @@ directory, and run.
   - `exparr.py`: plots the exploration, without background image, of the whole pyramid
 - `PRINT`: whether to print extra information about the search.
 - `SHOW_SEARCH`: show, on the screen, the states of the search tree as they are emulated
+
+#Run description
+- `3actions`: First run, recalculating every three actions with the latest waiting puzzle algorithm. Shown [here](https://vimeo.com/172891929).
+- `3actions-run-2`: Second run, with knowledge of which doors should not be opened. Manages to find the bug shown [here](https://www.youtube.com/watch?v=KSPYzLE0uy8)
+- `3actions-seed-1234`: Same as `3actions`, random seed is 1234.
+- `3actions-seed-1235`: Same as `3actions`, random seed is 1235.
+- `3actions-seed-1236`: Same as `3actions`, random seed is 1236.
+- `frameskip10`: Frameskip 10, but recalculate every two actions.
+- `no-minimal`: Same as `3actions`, but uses the full action set instead of the restricted set
