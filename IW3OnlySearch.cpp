@@ -326,7 +326,7 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 
 	if(!start_node->v_children.empty()){
 	    start_node->updateTreeNode();
-	    for (int a = 0; a < available_actions.size(); a++) {
+	    for (int a = 0; a < start_node->v_children.size(); a++) {
 			TreeNode* child = start_node->v_children[a];
 			if( !child->is_terminal ){
 		        child->num_nodes_reusable = child->num_nodes();
