@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 2) {
 		cout << "Attempting to load last state from file: " << argv[1] << endl;
 		ifstream state_f(argv[1], ios::in|ios::binary);
-		string delimiter = "<endstate>";
+		const string delimiter = "<endstate>";
 		string state_seq((istreambuf_iterator<char>(state_f)),
 				istreambuf_iterator<char>());
 		state_f.close();

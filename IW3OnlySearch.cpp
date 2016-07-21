@@ -413,9 +413,9 @@ void IW3OnlySearch::expand_tree(TreeNode* start_node) {
 	update_branch_return(start_node);
 
 #ifdef OUTPUT_EXPLORE
-	if(q.empty() || visited_screens[12]) {
+	{
 		ostringstream fname;
-		fname << "empty_exparr_" << exparr_i << ".txt";
+		fname << "exparr_" << setfill('0') << setw(3) << exparr_i << ".txt";
 		ofstream exparr(fname.str());
 		exparr << '[';
 		for(int i=0; i<HEIGHT*N_HEIGHT; i++) {
