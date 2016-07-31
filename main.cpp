@@ -13,6 +13,10 @@
 #include<cstdlib>
 #include<deque>
 
+// define if you wish to output <n> exparr.txt files, which then can be
+// processed with all_exparr.py or exparr.py
+// #define NUM_EXPARRS 12
+
 using namespace std;
 
 int main(int argc, char *argv[]) {
@@ -116,11 +120,19 @@ int main(int argc, char *argv[]) {
 		total_reward += r;
 		fstream action_reward, statef;
 		action_reward.open(record_dir + "/action_reward_" + trajectory_suffix, fstream::app);
+#ifdef NUM_EXPARRS
+		action_reward << (int)ale.getRAM().get(0xaa) << ' ' << (int)ale.getRAM().get(0xab) << '\n';
+#else
 		action_reward << static_cast<int>(action) << " " << r << " " << total_reward << endl;
+#endif
 		action_reward.close();
 		statef.open(record_dir + "/state_" + trajectory_suffix, fstream::app);
 		statef << ale.cloneState().serialize() << "<endstate>";
 		statef.close();
+#ifdef NUM_EXPARRS
+		if(n_iter >= NUM_EXPARRS*actions_no_recalc)
+			return 0;
+#endif
 		n_iter++;
     }
     return 0;

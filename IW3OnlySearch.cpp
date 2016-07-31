@@ -239,6 +239,7 @@ int IW3OnlySearch::expand_node( TreeNode* curr_node, deque<TreeNode*>& q, deque<
 						 act == PLAYER_A_RIGHT || act == PLAYER_A_UP )) {
 						add_ancestor_fall = true;
 						add_ancestor_node = child;
+						// The agent may want to drop down from a platform or cord
 						if(act == PLAYER_A_DOWN)
 							q.push_back(child);
 					} else {

@@ -26,6 +26,10 @@ To re-run a directory, copy the `ale.cfg` file and the `iw` executable to
 another directory. Then change `ale.cfg`'s recording directory to the new
 directory, and run.
 
+In the directories inside `show-screens` there are configuration files and
+images for painting the newly explored states in each search on the game
+background. Edit the `NUM_EXPARRS` definition in `main.cpp` to re-create.
+
 ##CMake configuration variables:
 
 - `OUTPUT_EXPLORE`: whether to output the explored positions in `exparr.txt`. Can be displayed with:
