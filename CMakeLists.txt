@@ -19,7 +19,7 @@ if(SHOW_SEARCH)
 endif(SHOW_SEARCH)
 
 
-set(ALE_DIR "/home/adria/Programacio/Arcade-Learning-Environment" CACHE FILEPATH "Repository root for the Arcade Learning Environment")
+set(ALE_DIR "../ALE-montezuma-modified" CACHE FILEPATH "Repository root for the Arcade Learning Environment")
 
 include_directories(${ALE_DIR}/src)
 link_directories(${ALE_DIR})
