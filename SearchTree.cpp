@@ -18,13 +18,14 @@
 #include <emucore/m6502/src/System.hxx>
 #include <cassert>
 #include <vector>
+#include <deque>
 
 using namespace std;
 
 /* *********************************************************************
 	Constructor
  ******************************************************************* */
-SearchTree::SearchTree(Settings & settings, 
+SearchTree::SearchTree(Settings & settings,
 		       ActionVect &_actions,
 		       StellaEnvironment* _env):
     is_built(false),
@@ -34,25 +35,22 @@ SearchTree::SearchTree(Settings & settings,
     available_actions(_actions),
     total_simulation_steps(0)
 {
-    
+
     frame_skip = settings.getInt("frame_skip", true);
     max_sim_steps_per_frame = settings.getInt("max_sim_steps_per_frame",false);
+	max_nodes_per_frame = max_sim_steps_per_frame / frame_skip;
     num_simulations_per_frame = settings.getInt("num_simulations_per_frame",false);
-    
+
 //    std::cout << "max_sim_steps_per_frame: "<< max_sim_steps_per_frame << std::endl;
     assert(max_sim_steps_per_frame != -1 || settings.getInt("uct_monte_carlo_steps",false) != -1);
-    
+
     discount_factor = settings.getFloat("discount_factor", true);
     // Default: false
     normalize_rewards = settings.getBool("normalize_rewards", false);
     // Default: false
     ignore_duplicates = settings.getBool("ignore_duplicates_nodes", false);
     m_env = _env;
-    m_randomize_successor = settings.getBool( "randomize_successor_novelty", false );
-    m_novelty_pruning = false;
-
-	// modified IW
-	assert(available_actions[0] == PLAYER_A_NOOP);
+    m_randomize_successor = settings.getBool( "randomize_successor_order", false );
 }
 
 
@@ -104,8 +102,8 @@ void SearchTree::get_best_action(std::deque<Action> &sequence,
 		// Ignore duplicates if the flag is set
 		if (ignore_duplicates && curr_child->is_duplicate()) continue;
 				
-		if (c != (size_t)best_branch && 
-		    curr_child->branch_return == best_child->branch_return && 
+		if (c != (size_t)best_branch &&
+		    curr_child->branch_return == best_child->branch_return &&
 			// Minimum depth if all branches return zero
 			!(curr_child->branch_return == 0 && curr_child->branch_depth < 6)) {
 			best_branches.push_back(c);
@@ -200,7 +198,7 @@ bool SearchTree::test_duplicate(TreeNode *node) {
     for (size_t c = 0; c < parent->v_children.size(); c++) {
       TreeNode * sibling = parent->v_children[c];
       // Ignore duplicates, this node and uninitialized nodes
-      if (sibling->is_duplicate() || sibling == node || 
+      if (sibling->is_duplicate() || sibling == node ||
         !sibling->is_initialized()) continue;
 
       if (sibling->state.equals(node->state)) {
@@ -215,8 +213,8 @@ bool SearchTree::test_duplicate(TreeNode *node) {
   }
 }
 
-int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int num_steps, 
-			       	return_t &traj_return, bool &game_ended, 
+int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int num_steps,
+			       	return_t &traj_return, bool &game_ended,
                 		bool discount_return, bool save_state) {
 
 	// Load the state into the emulator - a copy of the parent state
@@ -230,8 +228,8 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 	Action a;
 
 	// So that the compiler doesn't complain
-	if (act == RANDOM) a = PLAYER_A_NOOP; 
-	else a = act; 
+	if (act == RANDOM) a = PLAYER_A_NOOP;
+	else a = act;
 
 	int i;
 
@@ -245,15 +243,15 @@ int SearchTree::simulate_game(	ALEState & state, ALERAM &ram, Action act, int nu
 
 		// Move state forward using action a
 #ifdef SHOW_SEARCH
+		// Necessary because we are using the screen
 		reward_t curr_reward = aleint->act(a);
 #else
 		reward_t curr_reward = m_env->oneStepAct( a, PLAYER_B_NOOP);
 #endif
 
 		game_ended = m_env->isTerminal();
-			
 		return_t r = normalize_rewards ? normalize(curr_reward) : curr_reward;
-    
+
 		// Add curr_reward to the trajectory return
 		if (discount_return) {
 			traj_return += r * g;
@@ -288,7 +286,7 @@ return_t SearchTree::normalize(reward_t reward) {
       reward_magnitude = abs(reward);
     return (reward + 0.0) / reward_magnitude;
   }
-  
+
 }
 
 int SearchTree::num_nodes() {
@@ -329,7 +327,7 @@ void SearchTree::print_frame_data( int frame_number, float elapsed, Action curr_
 	output << ",expanded=" << expanded_nodes();
 	output << ",generated=" << generated_nodes();
 	output << ",depth_tree=" << max_depth();
-	output << ",tree_size=" <<  num_nodes(); 
+	output << ",tree_size=" <<  num_nodes();
 	output << ",best_action=" << action_to_string( curr_action );
 	output << ",branch_reward=" << get_root_value();
 	output << ",elapsed=" << elapsed;

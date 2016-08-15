@@ -5,6 +5,7 @@
 #include<iterator>
 #include<fstream>
 #include<string>
+#include "AbstractIWSearch.hpp"
 #include "IW1Search.hpp"
 #include "IW3OnlySearch.hpp"
 #include<cassert>
@@ -37,10 +38,15 @@ int main(int argc, char *argv[]) {
 	const int n_states_back = ale.getInt("n_states_back");
 	const int actions_no_recalc = ale.getInt("actions_no_recalc");
 
-	IW3OnlySearch search_tree(*ale.theSettings, available_actions, ale.environment.get());
-	search_tree.set_novelty_pruning();
+	AbstractIWSearch *search_tree;
+	string search_method = ale.getString("search_method");
+	if(search_method == "iw3") {
+		search_tree = new IW3OnlySearch(*ale.theSettings, available_actions, ale.environment.get());
+	} else if(search_method == "iw1") {
+		search_tree = new IW1Search(*ale.theSettings, available_actions, ale.environment.get());
+	}
 #if SHOW_SEARCH
-	search_tree.aleint = &ale;
+	search_tree->aleint = &ale;
 #endif
 
 	reward_t total_reward = 0;
@@ -74,31 +80,31 @@ int main(int argc, char *argv[]) {
     while(!ale.game_over()) {
 		ALEState state=ale.cloneState();
 		const ALEScreen saved_screen=ale.getScreen();
-		if (search_tree.is_built ) {
+		if (search_tree->is_built ) {
 			// Re-use the old tree
 			if(n_iter % actions_no_recalc == 0) {
-				if(search_tree.get_root()->state.equals(state)) {
-					search_tree.update_tree();
+				if(search_tree->get_root()->state.equals(state)) {
+					search_tree->update_tree();
 				} else {
 					fstream action_reward;
 					action_reward.open(record_dir + "/action_reward_" + trajectory_suffix, fstream::app);
 					action_reward << "Search tree does not coincide\n";
 					cout << "Search tree does not coincide\n";
 					action_reward.close();
-					search_tree.clear();
-					search_tree.build(state);
+					search_tree->clear();
+					search_tree->build(state);
 				}
 			}
 		} else {
 			// Build a new Search-Tree
-			search_tree.clear();
-			search_tree.build(state);
+			search_tree->clear();
+			search_tree->build(state);
 		}
 		ale.restoreState(state);
 		ale.environment->m_screen = saved_screen;
 		deque<Action> sequence;
 		deque<return_t> sequence_return;
-		search_tree.get_best_action(sequence, sequence_return);
+		search_tree->get_best_action(sequence, sequence_return);
 		if(sequence_return_old.empty() ||
 			sequence_return.front() >= sequence_return_old.front()) {
 			sequence_old = sequence;
@@ -114,7 +120,7 @@ int main(int argc, char *argv[]) {
 			n_iter = 0;
 			continue;
 		}
-		search_tree.move_to_best_sub_branch();
+		search_tree->move_to_best_sub_branch();
 
 		reward_t r = ale.act(action);
 		total_reward += r;

@@ -16,8 +16,6 @@
 #ifndef __SEARCH_TREE_HPP__
 #define __SEARCH_TREE_HPP__
 
-#include <queue>
-#include <deque>
 #include "TreeNode.hpp"
 #include <fstream>
 #include <limits>
@@ -34,8 +32,7 @@ class SearchTree {
     /* *************************************************************************
         Represents a search tree for rollout-based agents
     ************************************************************************* */
-	
-    public:
+public:
 #ifdef SHOW_SEARCH
 	ALEInterface *aleint;
 #endif
@@ -45,7 +42,7 @@ class SearchTree {
                SearchTree(Settings &, ActionVect &, StellaEnvironment* _env);
 
 		/* *********************************************************************
-            Destructor   
+            Destructor
          ******************************************************************* */
 		virtual ~SearchTree();
 
@@ -55,7 +52,7 @@ class SearchTree {
 		virtual void build(ALEState &state) = 0;
 
 		/* *********************************************************************
-			Updates (re-expands) the tree. 
+			Updates (re-expands) the tree.
 		 ******************************************************************* */
 		virtual void update_tree() = 0;
 		
@@ -95,17 +92,15 @@ class SearchTree {
       *  if discount_return == true, then every 'frame_skip' we
       *   discount the reward by 'discount_factor'
       */
-    int simulate_game(ALEState & state, ALERAM &ram, Action act, int num_steps, 
+    int simulate_game(ALEState & state, ALERAM &ram, Action act, int num_steps,
 		      return_t &traj_return, bool &game_ended, bool discount_return = false, bool save_state = true);
 
-    /** Normalizes a reward using the first non-zero reward's magnitude */ 
+    /** Normalizes a reward using the first non-zero reward's magnitude */
     return_t normalize(reward_t reward);
     virtual unsigned max_depth(){ return m_max_depth; }
     unsigned expanded_nodes() const { return m_expanded_nodes; }
     unsigned generated_nodes() const { return m_generated_nodes; }
     int num_nodes();
-
-    void set_novelty_pruning(){ m_novelty_pruning = true;}
 
     bool is_built;			// True whe the tree is built
 	
@@ -116,19 +111,17 @@ class SearchTree {
     TreeNode *get_root() {return p_root; }
 
     void set_available_actions( ActionVect acts ){ available_actions = acts;}
-    /** Returns the number of simulation steps used since the last call to 
+    /** Returns the number of simulation steps used since the last call to
       *  this function. */
     long num_simulation_steps();
 
 	virtual	void print_frame_data( int frame_number, float elapsed, Action curr_action, std::ostream& output );
 
-	protected:	
-
-
-		/* *********************************************************************
-			Deletes a node and all its children, all the way down the branch
-         ******************************************************************* */
-		void delete_branch(TreeNode* node);
+protected:
+	/* *********************************************************************
+		Deletes a node and all its children, all the way down the branch
+		******************************************************************* */
+	void delete_branch(TreeNode* node);
 
     /** Returns true if this node has a sibling with the same resulting state;
       *  also sets the node's duplicate flag to true in that case. */
@@ -137,18 +130,18 @@ class SearchTree {
   protected:
 
     // Root of the SearchTree
-		TreeNode* p_root;		
+	TreeNode* p_root;
     // Number of steps we will run the simulation in each search-tree node
-		int frame_skip;	
-    // Maximum number of simulation steps that will be carried to build 
+	int frame_skip;
+    // Maximum number of simulation steps that will be carried to build
     //   the tree on one frame
-		int max_sim_steps_per_frame;
+	int max_sim_steps_per_frame, max_nodes_per_frame;
     // The number of UCT simulations (trajectories) we require per step
-    //  when the tree is used fewer simulations need to be performed 
+    //  when the tree is used fewer simulations need to be performed
     int num_simulations_per_frame;
     // Discount factor to force the tree prefer closer goals
-		float discount_factor; 
-    // Whether to normalize the simulated rewards using the magnitude of the 
+		float discount_factor;
+    // Whether to normalize the simulated rewards using the magnitude of the
     //  first non-zero reward we see
     bool normalize_rewards;
     // Whether to ignore duplicate nodes when searching
@@ -158,17 +151,15 @@ class SearchTree {
     ActionVect  available_actions;
 
     // Counting how many simulation steps we have used since the last call
-    //   to get_num_simulation_steps() 
+    //   to get_num_simulation_steps()
     long total_simulation_steps;
-    
+
     StellaEnvironment* m_env;
 
     unsigned m_expanded_nodes;
     unsigned m_generated_nodes;
     unsigned m_max_depth;
-
-    bool   m_novelty_pruning;
-    bool             m_randomize_successor;
+    bool m_randomize_successor;
 };
 
 #endif // __SEARCH_TREE_HPP__
