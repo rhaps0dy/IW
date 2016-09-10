@@ -49,9 +49,9 @@ protected:
 		TreeNode *curr_node, TNDeque &q, TNDeque &low_q) = 0;
 
 	// Constants for Montezuma's Revenge
-	static constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=4, N_WIDTH=9;
-	static constexpr size_t N_SCREENS=24;
-	static constexpr int RAM_X=0x2a, RAM_Y=0x2b, RAM_SCREEN=0x03;
+	static constexpr int HEIGHT=0x63, WIDTH=0x92, N_HEIGHT=4, N_WIDTH=8;
+	static constexpr size_t N_SCREENS=0x20;
+	static constexpr int RAM_X=0x3f, RAM_Y=0x61, RAM_SCREEN=0x5c;
 	std::vector<int> expanded_arr;
 	int exparr_i = 0;
 

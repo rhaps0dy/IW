@@ -72,18 +72,25 @@ int AbstractIWSearch::expand_node(
 #endif
 #ifdef OUTPUT_EXPLORE
 	int n=curr_node->getRAM().get(RAM_SCREEN);
-	if(n < N_SCREENS) {
+	auto y_pos = curr_node->getRAM().get(RAM_Y);
+	auto x_pos = curr_node->getRAM().get(RAM_X);
+	if(n < N_SCREENS && y_pos < HEIGHT && x_pos < WIDTH) {
 		int xoffs, yoffs;
-		if(n < 8) {
-			if(n < 3) xoffs=3+n, yoffs=0;
-			else xoffs=n-1, yoffs=1;
+		if(N_SCREENS == 24) {
+			if(n < 8) {
+				if(n < 3) xoffs=3+n, yoffs=0;
+				else xoffs=n-1, yoffs=1;
+			} else {
+				if(n < 15) xoffs=n-7, yoffs=2;
+				else xoffs=n-15, yoffs=3;
+			}
 		} else {
-			if(n < 15) xoffs=n-7, yoffs=2;
-			else xoffs=n-15, yoffs=3;
+			xoffs = n % N_WIDTH;
+			yoffs = n / N_WIDTH;
 		}
-		expanded_arr[
-			(HEIGHT*yoffs + HEIGHT-(curr_node->getRAM().get(RAM_Y)-0x80))*N_WIDTH*WIDTH +
-			(WIDTH *xoffs + curr_node->getRAM().get(RAM_X))]++;
+		expanded_arr.at(
+			(HEIGHT*yoffs + HEIGHT-(y_pos + 1))*N_WIDTH*WIDTH +
+			(WIDTH *xoffs + x_pos))++;
 	}
 #endif
 	for (size_t a = initial_a; a < num_actions; a++) {

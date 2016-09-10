@@ -20,7 +20,8 @@ IW3OnlySearch::IW3OnlySearch(Settings &settings,
 
 	m_randomize_noop = (m_noop_parent_depth > 0);
 	// modified IW
-	assert(available_actions[0] == PLAYER_A_NOOP);
+	if(m_max_noop_reopen > 0 || m_noop_parent_depth > 0)
+		assert(available_actions[0] == PLAYER_A_NOOP);
 }
 
 IW3OnlySearch::~IW3OnlySearch() {
@@ -77,7 +78,7 @@ void IW3OnlySearch::clear()
 
 void IW3OnlySearch::enqueue_node(TreeNode *curr_node, TreeNode *child,
 								 TNDeque &q, TNDeque &low_q, Action act) {
-	auto current_lives = curr_node->getRAM().get(0xba);
+/*	auto current_lives = curr_node->getRAM().get(0xba);
 	// if life is lost, put it in the lower priority deque
 	if(child->getRAM().get(0xba) < current_lives) {
 		// enable NOOP if this is walking and kills
@@ -100,10 +101,10 @@ void IW3OnlySearch::enqueue_node(TreeNode *curr_node, TreeNode *child,
 			// The agent may want to drop down from a platform or cord
 			if(act == PLAYER_A_DOWN)
 				q.push_back(child);
-		} else {
+				} else {*/
 			q.push_back(child);
-		}
-	}
+//		}
+//	}
 }
 
 int IW3OnlySearch::expanded_node_postprocessing(
