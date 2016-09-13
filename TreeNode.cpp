@@ -21,7 +21,8 @@
 	Generates a new tree node by starting from start_state and 
 	simulating the game for num_simulate_steps steps.
  ******************************************************************* */
-TreeNode::TreeNode(	TreeNode* parent, ALEState &parentState):
+TreeNode::TreeNode(	TreeNode* parent, ALEState &parentState, NodeID _nid) :
+  nid(_nid),
   state(parentState), // Copy constructor of the parent state
   node_reward(0), 
   discounted_node_reward(0),
@@ -45,8 +46,9 @@ TreeNode::TreeNode(	TreeNode* parent, ALEState &parentState):
 {
 }
 
-TreeNode::TreeNode(	TreeNode* parent, ALEState &parentState, 
+TreeNode::TreeNode(	TreeNode* parent, ALEState &parentState, NodeID _nid,
 			SearchTree * tree, Action a, int num_simulate_steps, float disc):
+	nid(_nid),
 	state(parentState), // Copy constructor of the parent state
 	node_reward(0), 
 	discounted_node_reward(0),

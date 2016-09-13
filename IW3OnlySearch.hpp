@@ -8,8 +8,8 @@ class IW3OnlySearch : public AbstractIWSearch {
 public:
 	IW3OnlySearch(Settings &settings, ActionVect &actions, StellaEnvironment* _env);
 	~IW3OnlySearch();
-	virtual void update_novelty( const ALERAM &machine_state );
-	virtual bool check_novelty( const ALERAM& machine_state );
+	virtual void update_novelty(const ALERAM &machine_state, NodeID parent_nid);
+	virtual bool check_novelty(const ALERAM& machine_state, NodeID parent_nid);
 	virtual void clear();
 
 protected:
@@ -18,7 +18,7 @@ protected:
 	virtual int expanded_node_postprocessing(
 		TreeNode *curr_node, TNDeque &q, TNDeque &low_q);
 
-	virtual void unset_novelty( const ALERAM& machine_state );
+	virtual void unset_novelty(const ALERAM& machine_state);
 
 	TreeNode *add_ancestor_node;
 	std::default_random_engine generator;
@@ -27,12 +27,16 @@ protected:
 	double m_prune_screens_prob;
 	bool first_visited;
 
-	aptk::Bit_Matrix*	m_pos_novelty_table;
+	NodeID novelty_pos[N_SCREENS][256][256];
+	// List of offset positions that form a circle, to mark having been in that position
+	constexpr static size_t CIRCLE_LEN = 13;
+	const static int CIRCLE[CIRCLE_LEN][2];
+	constexpr static size_t CIRCLE_RADIUS = 2;
+	constexpr static NodeID EMPTY = 0;
+
 	unsigned m_max_noop_reopen;
 	unsigned m_noop_parent_depth;
 
 };
-
-
 
 #endif // __IW3_SEARCH_HPP__

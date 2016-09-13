@@ -28,7 +28,7 @@ IW1Search::~IW1Search() {
 	}
 }
 
-void IW1Search::update_novelty( const ALERAM& machine_state )
+void IW1Search::update_novelty(const ALERAM& machine_state, NodeID parent_nid)
 {
 	for ( size_t i = 0; i < machine_state.size(); i++ )
 		if( m_novelty_boolean_representation ){
@@ -47,7 +47,7 @@ void IW1Search::update_novelty( const ALERAM& machine_state )
 		}
 }
 
-bool IW1Search::check_novelty( const ALERAM& machine_state )
+bool IW1Search::check_novelty(const ALERAM& machine_state, NodeID parent_nid)
 {
 	for ( size_t i = 0; i < machine_state.size(); i++ )
 		if( m_novelty_boolean_representation ){

@@ -20,7 +20,7 @@ AbstractIWSearch::AbstractIWSearch(Settings &settings,
 // Builds a new tree
 void AbstractIWSearch::build(ALEState & state) {
 	assert(p_root == NULL);
-	p_root = new TreeNode(NULL, state, NULL, UNDEFINED, 0);
+	p_root = new TreeNode(NULL, state, 0, NULL, UNDEFINED, 0);
 	update_tree();
 	is_built = true;
 }
@@ -77,6 +77,7 @@ int AbstractIWSearch::expand_node(
 	if(n < N_SCREENS && y_pos < HEIGHT && x_pos < WIDTH) {
 		int xoffs, yoffs;
 		if(N_SCREENS == 24) {
+			// Means we are in Montezuma's Revenge
 			if(n < 8) {
 				if(n < 3) xoffs=3+n, yoffs=0;
 				else xoffs=n-1, yoffs=1;
@@ -85,6 +86,7 @@ int AbstractIWSearch::expand_node(
 				else xoffs=n-15, yoffs=3;
 			}
 		} else {
+			// Means we are in Private Eye
 			xoffs = n % N_WIDTH;
 			yoffs = n / N_WIDTH;
 		}
@@ -102,10 +104,11 @@ int AbstractIWSearch::expand_node(
 			m_generated_nodes++;
 			child = new TreeNode(curr_node,
 						curr_node->state,
+						m_current_nid++,
 						this,
 						act,
 						frame_skip);
-			if(check_novelty(child->getRAM())) {
+			if(check_novelty(child->getRAM(), curr_node->nid)) {
 				// child->is_terminal is already false
 				child->is_terminal = false;
 			} else {
@@ -118,11 +121,12 @@ int AbstractIWSearch::expand_node(
 			curr_node->v_children[a] = child;
 		} else {
 			child = curr_node->v_children[a];
+			child->nid = m_current_nid++;
 
 			// This recreates the novelty table (which gets resetted every time
 			// we change the root of the search tree)
 			if( child->is_terminal ) {
-				if(check_novelty(child->getRAM())) {
+				if(check_novelty(child->getRAM(), curr_node->nid)) {
 				    child->is_terminal = false;
 				} else {
 				    child->is_terminal = true;
@@ -145,8 +149,9 @@ int AbstractIWSearch::expand_node(
 			(int)child->getRAM().get(RAM_Y) << ") ";
 #endif
 		// Don't expand duplicate nodes, or terminal nodes
-		update_novelty( child->getRAM() );
 		if(!child->is_terminal) {
+			// nodes marked terminal do not need their novelty updated.
+			update_novelty( child->getRAM(), child->nid );
 			if((! (ignore_duplicates && test_duplicate(child)) ) &&
 			   ( child->num_nodes_reusable < max_nodes_per_frame )) {
 				// if life is lost, put it in the lower priority deque
@@ -176,6 +181,7 @@ void AbstractIWSearch::expand_tree(TreeNode* start_node) {
 		}
 	    }
 	}
+	start_node->nid = m_current_nid++;
 #ifdef OUTPUT_EXPLORE
 	fill(expanded_arr.begin(), expanded_arr.end(), 0);
 #endif // OUTPUT_EXPLORE
@@ -188,7 +194,7 @@ void AbstractIWSearch::expand_tree(TreeNode* start_node) {
 	//q.push(start_node);
 	pivots.push_back( start_node );
 
-	update_novelty( m_env->getRAM() );
+	update_novelty( m_env->getRAM(), start_node->nid );
 	int num_simulated_steps = 0;
 
 	m_expanded_nodes = 0;
@@ -270,6 +276,15 @@ void AbstractIWSearch::expand_tree(TreeNode* start_node) {
 #endif
 }
 
+void AbstractIWSearch::clear()
+{
+	SearchTree::clear();
+	/* A different starting m_current_nid may be needed if EMPTY!=0, which is a
+	 * constexpr */
+	assert(EMPTY == 0);
+	m_current_nid = 1;
+}
+
 void AbstractIWSearch::move_to_best_sub_branch()
 {
 	SearchTree::move_to_best_sub_branch();
@@ -339,8 +354,8 @@ void AbstractIWSearch::set_terminal_root(TreeNode * node) {
 
 	if (node->v_children.empty()) {
 		// Expand one child; add it to the node's children
-		TreeNode* new_child = new TreeNode(	node, node->state,
-							this, PLAYER_A_NOOP, frame_skip);
+		TreeNode* new_child = new TreeNode(node, node->state, m_current_nid++,
+										   this, PLAYER_A_NOOP, frame_skip);
 
 		node->v_children.push_back(new_child);
     	}

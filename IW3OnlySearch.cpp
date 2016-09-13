@@ -7,37 +7,47 @@
 
 using namespace std;
 
+const int IW3OnlySearch::CIRCLE[][2] = {{-2, 0}, {-1, -1}, {-1, 0},
+						 {-1, 1}, {0, -2}, {0, -1}, {0, 0}, {0, 1}, {0, 2}, {1, -1}, {1, 0},
+						 {1, 1}, {2, 0}};
+
 IW3OnlySearch::IW3OnlySearch(Settings &settings,
 			       ActionVect &actions, StellaEnvironment* _env) :
 	AbstractIWSearch(settings, actions, _env) {
 
 	add_ancestor_node = NULL;
-	m_pos_novelty_table = new aptk::Bit_Matrix(N_SCREENS, 256 * 256 );
 	m_max_noop_reopen = settings.getInt( "iw3_max_noop_reopen", 0 );
 	m_noop_parent_depth = settings.getInt( "iw3_noop_parent_depth", 0 );
 	m_prune_screens_prob = settings.getFloat( "iw3_prune_screens_prob", 0 );
 	first_visited = true;
 
 	m_randomize_noop = (m_noop_parent_depth > 0);
-	// modified IW
+	// If we are doing wait-for-obstacles, make sure the first available action
+	// is a NOOP.
 	if(m_max_noop_reopen > 0 || m_noop_parent_depth > 0)
 		assert(available_actions[0] == PLAYER_A_NOOP);
 }
 
 IW3OnlySearch::~IW3OnlySearch() {
-	delete m_pos_novelty_table;
 }
 
 
-void IW3OnlySearch::unset_novelty( const ALERAM& machine_state )
+void IW3OnlySearch::unset_novelty(const ALERAM& machine_state)
 {
 	auto s = machine_state.get(RAM_SCREEN);
 	if(s >= N_SCREENS) return;
-	m_pos_novelty_table->unset(s, machine_state.get(RAM_X)*256 +
-							   machine_state.get(RAM_Y));
+	NodeID nid = novelty_pos[s][machine_state.get(RAM_Y)][machine_state.get(RAM_X)];
+	auto y = machine_state.get(RAM_Y);
+	auto x = machine_state.get(RAM_X);
+	for(size_t i=0; i<CIRCLE_LEN; i++) {
+		auto yy = y+CIRCLE[i][0];
+		auto xx = x+CIRCLE[i][1];
+		if(novelty_pos[s][yy][xx] == nid)
+			novelty_pos[s][yy][xx] = EMPTY;
+	}
 }
 
-void IW3OnlySearch::update_novelty( const ALERAM& machine_state )
+void IW3OnlySearch::update_novelty(const ALERAM& machine_state, NodeID parent_nid)
 {
 	auto screen = machine_state.get(RAM_SCREEN);
 	if(!visited_screens[screen]) {
@@ -51,25 +61,31 @@ void IW3OnlySearch::update_novelty( const ALERAM& machine_state )
 		cout << endl;
 		first_visited = false;
 	}
-	m_pos_novelty_table->set(screen,
-		machine_state.get(RAM_X)*256 + machine_state.get(RAM_Y));
+	int y = machine_state.get(RAM_Y);
+	int x = machine_state.get(RAM_X);
+	for(size_t i=0; i<CIRCLE_LEN; i++) {
+		int yy = y+CIRCLE[i][0];
+		int xx = x+CIRCLE[i][1];
+		if(novelty_pos[screen][yy][xx] == 0)
+			novelty_pos[screen][yy][xx] = parent_nid;
+	}
 }
 
-bool IW3OnlySearch::check_novelty( const ALERAM& machine_state )
+bool IW3OnlySearch::check_novelty(const ALERAM& machine_state, NodeID parent_nid)
 {
 	auto screen = machine_state.get(RAM_SCREEN);
-	if(pruned_screens[screen]) return false;
-	if ( !m_pos_novelty_table->isset( screen,
-			machine_state.get(RAM_X)*256 + machine_state.get(RAM_Y)))
-		return true;
-	return false;
+	auto y = machine_state.get(RAM_Y);
+	auto x = machine_state.get(RAM_X);
+	return (!pruned_screens[screen]) &&
+			(novelty_pos[screen][y][x] == EMPTY ||
+			 novelty_pos[screen][y][x] == parent_nid);
 }
 
 
 void IW3OnlySearch::clear()
 {
-	SearchTree::clear();
-	m_pos_novelty_table->clear();
+	AbstractIWSearch::clear();
+	memset(novelty_pos, EMPTY, sizeof(novelty_pos));
 	fill(visited_screens, visited_screens+N_SCREENS, false);
 	fill(pruned_screens, pruned_screens+N_SCREENS, false);
 	first_visited = true;
@@ -78,7 +94,8 @@ void IW3OnlySearch::clear()
 
 void IW3OnlySearch::enqueue_node(TreeNode *curr_node, TreeNode *child,
 								 TNDeque &q, TNDeque &low_q, Action act) {
-/*	auto current_lives = curr_node->getRAM().get(0xba);
+/*  Uncomment for Montezuma
+   auto current_lives = curr_node->getRAM().get(0xba);
 	// if life is lost, put it in the lower priority deque
 	if(child->getRAM().get(0xba) < current_lives) {
 		// enable NOOP if this is walking and kills
@@ -124,8 +141,8 @@ int IW3OnlySearch::expanded_node_postprocessing(
 			for(unsigned j=i+1; j!=0; j--) {
 				if(cousin->v_children.empty()) {
 					cousin->v_children.push_back(
-						new TreeNode(cousin, cousin->state, this, PLAYER_A_NOOP,
-						frame_skip));
+						new TreeNode(cousin, cousin->state, m_current_nid++,
+									 this, PLAYER_A_NOOP, frame_skip));
 					num_simulated_steps += cousin->num_simulated_steps;
 					cousin->best_branch = 0;
 					cousin->available_actions.push_back(PLAYER_A_NOOP);
@@ -139,9 +156,12 @@ int IW3OnlySearch::expanded_node_postprocessing(
 				const Action a = prev_ancestor->act;
 				for(unsigned reopen=0; reopen<m_max_noop_reopen; reopen++) {
 					//printf(" %u", reopen);
-					TreeNode one(cousin, cousin->state, this, a, frame_skip);
-					TreeNode two(&one, one.state, this, a, frame_skip);
-					num_simulated_steps += one.num_simulated_steps + two.num_simulated_steps;
+					TreeNode one(cousin, cousin->state, m_current_nid++, this,
+								 a, frame_skip);
+					TreeNode two(&one, one.state, m_current_nid++, this,
+								 a, frame_skip);
+					num_simulated_steps += one.num_simulated_steps +
+						two.num_simulated_steps;
 					if(two.getRAM().get(0xba) == current_lives &&
 					   two.getRAM().get(0xd6) == 0xff &&
 					   two.getRAM().get(0xd8) == 0x00) {
@@ -153,8 +173,9 @@ int IW3OnlySearch::expanded_node_postprocessing(
 					} else {
 						if(cousin->v_children.empty()) {
 							cousin->v_children.push_back(
-								new TreeNode(cousin, cousin->state, this, PLAYER_A_NOOP,
-											 frame_skip));
+								new TreeNode(cousin, cousin->state,
+											 m_current_nid++, this,
+											 PLAYER_A_NOOP, frame_skip));
 							num_simulated_steps += cousin->num_simulated_steps;
 							cousin->best_branch = 0;
 							cousin->available_actions.push_back(PLAYER_A_NOOP);

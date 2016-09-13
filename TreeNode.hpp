@@ -17,12 +17,14 @@
 #define __TREE_NODE_HPP__
 
 #include <ale_interface.hpp>
+#include <cstdint>
 
 typedef double return_t;
 class SearchAgent;
 class SearchTree;
 class TreeNode;
 typedef std::vector<TreeNode*> NodeList;
+typedef uint32_t NodeID;
 
 class TreeNode {
     /* *************************************************************************
@@ -34,14 +36,17 @@ class TreeNode {
             Constructor
 	Generates a new uninitialized tree node.
 	******************************************************************* */
-	TreeNode(	TreeNode *parent, ALEState &parentState);	
+	TreeNode(TreeNode *parent, ALEState &parentState, NodeID _nid);
+
+	NodeID nid;
 
     	/** Generates a tree node, then initializes it by simulating the result
       	*  from starting in parentState and taking action a for a given number
 	*  of steps.
 	*/
-	TreeNode(	TreeNode *parent, ALEState &parentState, 
-  	SearchTree *tree, Action a, int num_simulate_steps, float discount = 1.0);	
+	TreeNode(TreeNode *parent, ALEState &parentState, NodeID _nid,
+			 SearchTree *tree, Action a, int num_simulate_steps,
+			 float discount = 1.0);
 
       	/** Properly generate this node by simulating it from the start state */
 	void init(SearchTree * tree, Action a, int num_simulate_steps);

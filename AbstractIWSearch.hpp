@@ -35,9 +35,9 @@ public:
 	void update_branch_return(TreeNode* node);
     void set_terminal_root(TreeNode* node);
 
-	virtual void update_novelty(const ALERAM &machine_state) = 0;
-	virtual bool check_novelty(const ALERAM& machine_state) = 0;
-	virtual void clear() = 0;
+	virtual void update_novelty(const ALERAM &machine_state, NodeID parent_nid) = 0;
+	virtual bool check_novelty(const ALERAM &machine_state, NodeID parent_nid) = 0;
+	virtual void clear();
 
 	void move_to_best_sub_branch();
 
@@ -48,10 +48,16 @@ protected:
 	virtual int expanded_node_postprocessing(
 		TreeNode *curr_node, TNDeque &q, TNDeque &low_q) = 0;
 
-	// Constants for Montezuma's Revenge
+	/* Montezuma's Revenge
+	static constexpr int HEIGHT=128, WIDTH=160, N_HEIGHT=4, N_WIDTH=9;
+	static constexpr size_t N_SCREENS=24;
+	static constexpr int RAM_X=0x2a, RAM_Y=0x2b, RAM_SCREEN=0x03;
+	*/
+	/* Private Eye */
 	static constexpr int HEIGHT=0x63, WIDTH=0x92, N_HEIGHT=4, N_WIDTH=8;
 	static constexpr size_t N_SCREENS=0x20;
 	static constexpr int RAM_X=0x3f, RAM_Y=0x61, RAM_SCREEN=0x5c;
+
 	std::vector<int> expanded_arr;
 	int exparr_i = 0;
 
@@ -59,6 +65,7 @@ protected:
 	unsigned m_pruned_nodes;
 	bool m_stop_on_first_reward;
 	unsigned m_reward_horizon;
+	NodeID m_current_nid;
 };
 
 

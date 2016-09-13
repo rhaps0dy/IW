@@ -7,8 +7,8 @@ class IW1Search : public AbstractIWSearch {
 public:
 	IW1Search(Settings &settings, ActionVect &actions, StellaEnvironment* _env);
 	~IW1Search();
-	virtual void update_novelty( const ALERAM &machine_state );
-	virtual bool check_novelty( const ALERAM& machine_state );
+	virtual void update_novelty(const ALERAM &machine_state, NodeID parent_nid);
+	virtual bool check_novelty(const ALERAM& machine_state, NodeID parent_nid);
 	virtual void clear();
 
 protected:
