@@ -279,9 +279,6 @@ void AbstractIWSearch::expand_tree(TreeNode* start_node) {
 void AbstractIWSearch::clear()
 {
 	SearchTree::clear();
-	/* A different starting m_current_nid may be needed if EMPTY!=0, which is a
-	 * constexpr */
-	assert(EMPTY == 0);
 	m_current_nid = 1;
 }
 

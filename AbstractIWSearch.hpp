@@ -56,7 +56,7 @@ protected:
 	/* Private Eye */
 	static constexpr int HEIGHT=0x63, WIDTH=0x92, N_HEIGHT=4, N_WIDTH=8;
 	static constexpr size_t N_SCREENS=0x20;
-	static constexpr int RAM_X=0x3f, RAM_Y=0x61, RAM_SCREEN=0x5c;
+	static constexpr int RAM_X=0x3f, RAM_Y=0x61, RAM_SCREEN=0x5c, RAM_Z=0x55;
 
 	std::vector<int> expanded_arr;
 	int exparr_i = 0;

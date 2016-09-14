@@ -28,6 +28,8 @@ protected:
 	bool first_visited;
 
 	NodeID novelty_pos[N_SCREENS][256][256];
+	constexpr static int Z_BASE=0x26;
+	bool novelty_z[0x37 - Z_BASE + 1];
 	// List of offset positions that form a circle, to mark having been in that position
 	constexpr static size_t CIRCLE_LEN = 13;
 	const static int CIRCLE[CIRCLE_LEN][2];

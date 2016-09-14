@@ -45,6 +45,7 @@ void IW3OnlySearch::unset_novelty(const ALERAM& machine_state)
 		if(novelty_pos[s][yy][xx] == nid)
 			novelty_pos[s][yy][xx] = EMPTY;
 	}
+	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = false;
 }
 
 void IW3OnlySearch::update_novelty(const ALERAM& machine_state, NodeID parent_nid)
@@ -69,6 +70,7 @@ void IW3OnlySearch::update_novelty(const ALERAM& machine_state, NodeID parent_ni
 		if(novelty_pos[screen][yy][xx] == 0)
 			novelty_pos[screen][yy][xx] = parent_nid;
 	}
+	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = true;
 }
 
 bool IW3OnlySearch::check_novelty(const ALERAM& machine_state, NodeID parent_nid)
@@ -76,9 +78,10 @@ bool IW3OnlySearch::check_novelty(const ALERAM& machine_state, NodeID parent_nid
 	auto screen = machine_state.get(RAM_SCREEN);
 	auto y = machine_state.get(RAM_Y);
 	auto x = machine_state.get(RAM_X);
-	return (!pruned_screens[screen]) &&
+	return (!pruned_screens[screen] &&
 			(novelty_pos[screen][y][x] == EMPTY ||
-			 novelty_pos[screen][y][x] == parent_nid);
+			 novelty_pos[screen][y][x] == parent_nid)) ||
+		!novelty_z[machine_state.get(RAM_Z)-Z_BASE];
 }
 
 
@@ -86,6 +89,7 @@ void IW3OnlySearch::clear()
 {
 	AbstractIWSearch::clear();
 	memset(novelty_pos, EMPTY, sizeof(novelty_pos));
+	fill(novelty_z, novelty_z+sizeof(novelty_z)/sizeof(novelty_z[0]), false);
 	fill(visited_screens, visited_screens+N_SCREENS, false);
 	fill(pruned_screens, pruned_screens+N_SCREENS, false);
 	first_visited = true;
