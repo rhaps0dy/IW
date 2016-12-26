@@ -7,9 +7,7 @@
 
 using namespace std;
 
-const int IW3OnlySearch::CIRCLE[][2] = {{-2, 0}, {-1, -1}, {-1, 0},
-						 {-1, 1}, {0, -2}, {0, -1}, {0, 0}, {0, 1}, {0, 2}, {1, -1}, {1, 0},
-						 {1, 1}, {2, 0}};
+const int IW3OnlySearch::CIRCLE[][2] = {{-1, 0}, {0, 0}, {1, 0}, {0, 1}, {0, -1}};
 
 IW3OnlySearch::IW3OnlySearch(Settings &settings,
 			       ActionVect &actions, StellaEnvironment* _env) :
@@ -26,9 +24,11 @@ IW3OnlySearch::IW3OnlySearch(Settings &settings,
 	// is a NOOP.
 	if(m_max_noop_reopen > 0 || m_noop_parent_depth > 0)
 		assert(available_actions[0] == PLAYER_A_NOOP);
+	m_ram_novelty_table = new aptk::Bit_Matrix(RAM_SIZE, 256);
 }
 
 IW3OnlySearch::~IW3OnlySearch() {
+	delete m_ram_novelty_table;
 }
 
 
@@ -45,7 +45,7 @@ void IW3OnlySearch::unset_novelty(const ALERAM& machine_state)
 		if(novelty_pos[s][yy][xx] == nid)
 			novelty_pos[s][yy][xx] = EMPTY;
 	}
-	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = false;
+//	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = false;
 }
 
 void IW3OnlySearch::update_novelty(const ALERAM& machine_state, NodeID parent_nid)
@@ -70,7 +70,9 @@ void IW3OnlySearch::update_novelty(const ALERAM& machine_state, NodeID parent_ni
 		if(novelty_pos[screen][yy][xx] == 0)
 			novelty_pos[screen][yy][xx] = parent_nid;
 	}
-	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = true;
+	for(size_t i=0; i<machine_state.size(); i++)
+		m_ram_novelty_table->set(i, machine_state.get(i));
+//	novelty_z[machine_state.get(RAM_Z)-Z_BASE] = true;
 }
 
 bool IW3OnlySearch::check_novelty(const ALERAM& machine_state, NodeID parent_nid)
@@ -78,10 +80,15 @@ bool IW3OnlySearch::check_novelty(const ALERAM& machine_state, NodeID parent_nid
 	auto screen = machine_state.get(RAM_SCREEN);
 	auto y = machine_state.get(RAM_Y);
 	auto x = machine_state.get(RAM_X);
-	return (!pruned_screens[screen] &&
-			(novelty_pos[screen][y][x] == EMPTY ||
-			 novelty_pos[screen][y][x] == parent_nid)) ||
-		!novelty_z[machine_state.get(RAM_Z)-Z_BASE];
+	if(!pruned_screens[screen] &&
+	   (novelty_pos[screen][y][x] == EMPTY ||
+		novelty_pos[screen][y][x] == parent_nid))
+		return true;
+//		!novelty_z[machine_state.get(RAM_Z)-Z_BASE];
+	for(size_t i=0; i<machine_state.size(); i++)
+		if(!m_ram_novelty_table->isset(i, machine_state.get(i)))
+			return true;
+	return false;
 }
 
 
@@ -89,7 +96,6 @@ void IW3OnlySearch::clear()
 {
 	AbstractIWSearch::clear();
 	memset(novelty_pos, EMPTY, sizeof(novelty_pos));
-	fill(novelty_z, novelty_z+sizeof(novelty_z)/sizeof(novelty_z[0]), false);
 	fill(visited_screens, visited_screens+N_SCREENS, false);
 	fill(pruned_screens, pruned_screens+N_SCREENS, false);
 	first_visited = true;
@@ -122,7 +128,7 @@ void IW3OnlySearch::enqueue_node(TreeNode *curr_node, TreeNode *child,
 			// The agent may want to drop down from a platform or cord
 			if(act == PLAYER_A_DOWN)
 				q.push_back(child);
-				} else {*/
+				} else { */
 			q.push_back(child);
 //		}
 //	}

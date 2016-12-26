@@ -20,7 +20,7 @@ AbstractIWSearch::AbstractIWSearch(Settings &settings,
 // Builds a new tree
 void AbstractIWSearch::build(ALEState & state) {
 	assert(p_root == NULL);
-	p_root = new TreeNode(NULL, state, 0, NULL, UNDEFINED, 0);
+	p_root = new TreeNode(NULL, state, 0, this, UNDEFINED, 0);
 	update_tree();
 	is_built = true;
 }
@@ -72,7 +72,7 @@ int AbstractIWSearch::expand_node(
 #endif
 #ifdef OUTPUT_EXPLORE
 	int n=curr_node->getRAM().get(RAM_SCREEN);
-	auto y_pos = curr_node->getRAM().get(RAM_Y);
+	auto y_pos = curr_node->getRAM().get(RAM_Y)-SUBTRACT_Y;
 	auto x_pos = curr_node->getRAM().get(RAM_X);
 	if(n < N_SCREENS && y_pos < HEIGHT && x_pos < WIDTH) {
 		int xoffs, yoffs;
@@ -91,7 +91,7 @@ int AbstractIWSearch::expand_node(
 			yoffs = n / N_WIDTH;
 		}
 		expanded_arr.at(
-			(HEIGHT*yoffs + HEIGHT-(y_pos + 1))*N_WIDTH*WIDTH +
+			(HEIGHT*yoffs + HEIGHT-y_pos)*N_WIDTH*WIDTH +
 			(WIDTH *xoffs + x_pos))++;
 	}
 #endif

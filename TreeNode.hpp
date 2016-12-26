@@ -18,6 +18,7 @@
 
 #include <ale_interface.hpp>
 #include <cstdint>
+#include <utility>
 
 typedef double return_t;
 class SearchAgent;
@@ -101,7 +102,7 @@ class TreeNode {
 	Action                  act;
 	ActionVect              available_actions;
 	bool                    already_expanded;
-    
+//	std::pair<int, int> screen_pos; // implicitly initialised to 0,0. The screen this node is located in.
         unsigned                num_nodes_reusable;
 	ALERAM m_ram;
 public:

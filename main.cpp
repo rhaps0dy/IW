@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 	ALEInterface ale;
 	ale.loadROM(ale.getString("rom_file"));
 	// randomise initial situation
-	for(int i=0; i<rand()%30; i++)
+	for(int i=-1; i<rand()%30; i++)
 		ale.act(PLAYER_A_NOOP);
 
 	string trajectory_suffix = ale.getString("trajectory_suffix");

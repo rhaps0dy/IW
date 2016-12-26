@@ -3,6 +3,17 @@
 
 #include "AbstractIWSearch.hpp"
 #include <random>
+/*#include <utility>
+#include <map>
+
+struct NoveltyScreen {
+	int y, x;
+	// left, right, top, bottom
+	NoveltyScreen *l, *r, *t, *b;
+	NodeID used[256][256];
+	NoveltyScreen(int _y, int _x) :
+		y(_y), x(_x), l(NULL), r(NULL), t(NULL), b(NULL), used{{0}} {}
+		};*/
 
 class IW3OnlySearch : public AbstractIWSearch {
 public:
@@ -28,17 +39,18 @@ protected:
 	bool first_visited;
 
 	NodeID novelty_pos[N_SCREENS][256][256];
-	constexpr static int Z_BASE=0x26;
-	bool novelty_z[0x37 - Z_BASE + 1];
+/*	constexpr static int Z_BASE=0x26;
+	bool novelty_z[0x37 - Z_BASE + 1];*/
 	// List of offset positions that form a circle, to mark having been in that position
-	constexpr static size_t CIRCLE_LEN = 13;
+	aptk::Bit_Matrix* m_ram_novelty_table;
+	constexpr static size_t CIRCLE_LEN = 5;
 	const static int CIRCLE[CIRCLE_LEN][2];
 	constexpr static size_t CIRCLE_RADIUS = 2;
 	constexpr static NodeID EMPTY = 0;
+//	std::map<std::pair<int,int>, NoveltyScreen> novelty_screens;
 
 	unsigned m_max_noop_reopen;
 	unsigned m_noop_parent_depth;
-
 };
 
 #endif // __IW3_SEARCH_HPP__
